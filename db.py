@@ -15,7 +15,7 @@ class DB:
 																password=self.pw, database=self.db,
 																allow_local_infile=True
 		)
-		self.cursor = self.con.cursor()
+		self.cursor = self.con.cursor(named_tuple=True)
 
 	def close(self):
 		if self.con == None:
@@ -25,6 +25,9 @@ class DB:
 			self.cursor = None
 		self.con.close()
 		self.con = None
+
+	def escape(self, s):
+		return self.con.converter.escape(s)
 
 	def query(self, q, params=None):
 		#print(q)
