@@ -27,11 +27,21 @@ def create_race(race_name, race_date, race_dist_cm):
 		"(%s,%s,%s)"
 	con.query(q, (race_name, race_date, race_dist_cm))
 
+class Place_tracker:
+	def __init__(self):
+		self.cur_place = 1
+		self.cur_m_place = 1
+		self.cur_f_place = 1
+		self.cur_usatf_m_place = 1
+		self.cur_usatf_f_place = 1
+		self.div_cutoffs = [11, 14] + range(19, 90, 5)
+
 class Members:
 	def __init__(self, race_date):
 		q = "select *,%s - year(bdate) - (date_format(bdate, %s) > %s) age from usatf.member"
 		con.query(q, (race_date.year, "%m%d", race_date.strftime('%m%d')))
 		self.members = {}
+		self.matches = {}
 		r = con.fetch_row()
 		while r:
 			k = self.get_member_key(r)
@@ -42,14 +52,18 @@ class Members:
 		#print(self.members)
 	@staticmethod
 	def get_member_key(r):
-		return str(r.lname).upper() + "|" + str(r.age) + "|" + str(r.gender).upper()[0:1];
+		return str(r.lname).upper() + "|" + str(r.age) + "|" + str(r.gender).upper()[0:1]
+
 	def find(self, row):
 		k = self.get_member_key(row)
+		if k in self.matches:
+			raise Exception("Member " + str(k) + " already matched")
 		#print("Checking key " + k)
 		if k not in self.members:
 			return None
 		m_list = self.members[k]
 		if len(m_list) == 1:
+			self.matches[k] = row
 			return m_list[0]
 		raise Exception("Multiple matches for " + str(row.__dict__) + ": " + str(m_list))
 
@@ -60,6 +74,13 @@ class Row_obj:
 		for k in fields:
 			self.__dict__[k] = ref_o.get_field(k, row)
 
+class Race_rec:
+	def __init__(self, ref_o, m, row_o):
+		self.member_id = m.id
+		self.race_id = race.id
+		self.gun_time_ms = time_to_ms(row_o.gun_time)
+		self.chip_time_ms = time_to_ms(row_o.chip_time)
+		self.place = parse_place(row_o.place)
 
 class Ref_obj:
 	def __init__(self, fields):
@@ -71,6 +92,9 @@ class Ref_obj:
 			except:
 				self.__dict__[f] = None
 
+	def get_race_rec(self, m, row_o):
+		return Race_rec(self, m, row_o)
+
 	def get_field(self, field_name, row):
 		try:
 			return row[self.__dict__[field_name]]
@@ -80,12 +104,22 @@ class Ref_obj:
 			print("bad field: " + field_name)
 			raise
 
-	def get_row_obj(self, row):
-		return Row_obj(self, row)
+	def find_member(self, row_o):
+		return members.find(row_o)
 
-	def find_member(self, row):
-		r_o = self.get_row_obj(row)
-		return members.find(r_o)
+def parse_place(p):
+	try:
+		return int(filter(str.isdigit, p))
+	except:
+		return 0
+
+def time_to_ms(t):
+	print(t)
+	parts = str(t).split(':')
+	res = 0
+	for p in parts:
+		res = res * 60.0 + float(p)
+	return int(res * 1000)
 
 if len(sys.argv) < 2:
 	fatal("Missing file name argument")
@@ -105,7 +139,7 @@ con.connect()
 race = get_race(args.race_name, args.race_date, args.race_dist_cm)
 print(race)
 members = Members(race.date)
-print(sorted(members.members.keys()))
+#print(sorted(members.members.keys()))
 
 with open(fname, 'rb') as f:
 	r = csv.reader(f, delimiter = args.delim)
@@ -113,10 +147,10 @@ with open(fname, 'rb') as f:
 	ref_o = Ref_obj(fields)
 	#print(json.dumps(ref_o.__dict__))
 	for row in r:
-		m = ref_o.find_member(row)
+		row_o = Row_obj(ref_o, row)
+		m = ref_o.find_member(row_o)
 		if m:
-			print(row)
-			print "matched to"
-			print(m)
+			race_r = ref_o.get_race_rec(m, row_o)
+			print(race_r.__dict__)
 
 con.close()

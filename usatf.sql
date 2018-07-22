@@ -28,7 +28,8 @@ create table `race_results`
 (
 	`race_id` int unsigned not null,
 	`member_id` int unsigned not null,
-	`time_ms` int unsigned not null,
+	`chip_time_ms` int unsigned not null,
+	`gun_time_ms` int unsigned not null,
 	`place_overall` int unsigned not null,
  	`place_gender` int unsigned not null,
  	`place_div` int unsigned not null,
