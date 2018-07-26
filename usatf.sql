@@ -34,5 +34,7 @@ create table `race_results`
  	`place_gender` int unsigned not null,
  	`place_div` int unsigned not null,
  	`place_gender_usatf` int unsigned not null,
- 	`place_div_usatf` int unsigned not null
+ 	`place_div_usatf` int unsigned not null,
+ 	`place_masters` int unsigned not null,
+ 	`place_masters_usatf` int unsigned not null
 );

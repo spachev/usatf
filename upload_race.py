@@ -5,6 +5,8 @@ import argparse
 import json
 import re
 
+MAX_AGE = 10000
+
 def get_race(race_name, race_date, race_dist_cm):
 	race = get_race_from_db(race_name, race_date)
 	if race == None:
@@ -29,12 +31,31 @@ def create_race(race_name, race_date, race_dist_cm):
 
 class Place_tracker:
 	def __init__(self):
-		self.cur_place = 1
-		self.cur_m_place = 1
-		self.cur_f_place = 1
-		self.cur_usatf_m_place = 1
-		self.cur_usatf_f_place = 1
 		self.div_cutoffs = [11, 14] + range(19, 90, 5)
+		self.divs =  self.div_cutoffs + ["", "MASTSERS"]
+		self.cur_places = { gender + str(age) : 0 for gender
+												 in ('M','F') for age in self.divs }
+		self.last_places = {}
+
+	def inc_div(self, div_name, mode):
+		self.cur_places[div_name] += 1
+		self.last_places[mode] = self.cur_places[div_name]
+
+	def get_last_place(self, mode):
+		return self.last_places[mode]
+
+	def get_div(self, age):
+		for cutoff in self.div_cutoffs:
+			if age <= cutoff:
+				return cutoff
+		return MAX_AGE
+
+	def record_runner(self, gender, age):
+		self.inc_div('', 'overall')
+		self.inc_div(gender, 'gender')
+		self.inc_div(gender + self.get_div(age), 'div')
+		if age >= 40:
+			self.inc_div(gender + 'MASTSERS', 'masters')
 
 class Members:
 	def __init__(self, race_date):
@@ -140,6 +161,8 @@ race = get_race(args.race_name, args.race_date, args.race_dist_cm)
 print(race)
 members = Members(race.date)
 #print(sorted(members.members.keys()))
+place_tracker = Place_tracker()
+usatf_place_tracker = Place_tracker()
 
 with open(fname, 'rb') as f:
 	r = csv.reader(f, delimiter = args.delim)
