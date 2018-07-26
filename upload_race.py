@@ -6,6 +6,7 @@ import json
 import re
 
 MAX_AGE = 10000
+USATF_MEM_DATE = "0630"
 
 def get_race(race_name, race_date, race_dist_cm):
 	race = get_race_from_db(race_name, race_date)
@@ -32,9 +33,10 @@ def create_race(race_name, race_date, race_dist_cm):
 class Place_tracker:
 	def __init__(self):
 		self.div_cutoffs = [11, 14] + range(19, 90, 5)
-		self.divs =  self.div_cutoffs + ["", "MASTSERS"]
+		self.divs =  self.div_cutoffs + ["", str(MAX_AGE), "MASTSERS"]
 		self.cur_places = { gender + str(age) : 0 for gender
-												 in ('M','F') for age in self.divs }
+												 in ('m','f') for age in self.divs }
+		self.cur_places[''] = 0
 		self.last_places = {}
 
 	def inc_div(self, div_name, mode):
@@ -46,9 +48,10 @@ class Place_tracker:
 
 	def get_div(self, age):
 		for cutoff in self.div_cutoffs:
+			#print("checking " + str(age) + " against cutoff " + str(cutoff))
 			if age <= cutoff:
-				return cutoff
-		return MAX_AGE
+				return str(cutoff)
+		return str(MAX_AGE)
 
 	def record_runner(self, gender, age):
 		self.inc_div('', 'overall')
@@ -60,7 +63,7 @@ class Place_tracker:
 class Members:
 	def __init__(self, race_date):
 		q = "select *,%s - year(bdate) - (date_format(bdate, %s) > %s) age from usatf.member"
-		con.query(q, (race_date.year, "%m%d", race_date.strftime('%m%d')))
+		con.query(q, (race_date.year, "%m%d", USATF_MEM_DATE))
 		self.members = {}
 		self.matches = {}
 		r = con.fetch_row()
@@ -94,6 +97,7 @@ class Row_obj:
 		fields.append('lname')
 		for k in fields:
 			self.__dict__[k] = ref_o.get_field(k, row)
+		self.age = int(self.age)
 
 class Race_rec:
 	def __init__(self, ref_o, m, row_o):
@@ -101,7 +105,10 @@ class Race_rec:
 		self.race_id = race.id
 		self.gun_time_ms = time_to_ms(row_o.gun_time)
 		self.chip_time_ms = time_to_ms(row_o.chip_time)
-		self.place = parse_place(row_o.place)
+		# self.place = parse_place(row_o.place)
+		for k in ('overall', 'gender', 'div', 'gender_usatf', 'div_usatf',
+						'masters', 'masters_usatf'):
+			self.__dict__['place_' + k ] = 0
 
 class Ref_obj:
 	def __init__(self, fields):
@@ -171,9 +178,18 @@ with open(fname, 'rb') as f:
 	#print(json.dumps(ref_o.__dict__))
 	for row in r:
 		row_o = Row_obj(ref_o, row)
+		#print(place_tracker.cur_places)
+		place_tracker.record_runner(row_o.gender, row_o.age)
 		m = ref_o.find_member(row_o)
 		if m:
 			race_r = ref_o.get_race_rec(m, row_o)
+			usatf_place_tracker.record_runner(row_o.gender, row_o.age)
+			modes = ['overall', 'div', 'gender']
+			if row_o.age >= 40:
+				modes += ['masters']
+			for mode in modes:
+				race_r.__dict__['place_' + mode] = place_tracker.get_last_place(mode)
+				race_r.__dict__['place_' + mode + '_usatf'] = usatf_place_tracker.get_last_place(mode)
 			print(race_r.__dict__)
 
 con.close()
