@@ -40,6 +40,7 @@ class Place_tracker:
 		self.last_places = {}
 
 	def inc_div(self, div_name, mode):
+		#print("inc_div:" + div_name + "," + mode)
 		self.cur_places[div_name] += 1
 		self.last_places[mode] = self.cur_places[div_name]
 
@@ -54,16 +55,21 @@ class Place_tracker:
 		return str(MAX_AGE)
 
 	def record_runner(self, gender, age):
+		age = int(age)
 		self.inc_div('', 'overall')
 		self.inc_div(gender, 'gender')
 		self.inc_div(gender + self.get_div(age), 'div')
 		if age >= 40:
+			#print("recording master")
 			self.inc_div(gender + 'MASTSERS', 'masters')
 
 class Members:
 	def __init__(self, race_date):
-		q = "select *,%s - year(bdate) - (date_format(bdate, %s) > %s) age from usatf.member"
-		con.query(q, (race_date.year, "%m%d", USATF_MEM_DATE))
+		q = "select *,%s - year(bdate) - (date_format(bdate, %s) > %s) usatf_age " + \
+			" , %s - year(bdate) - (date_format(bdate, %s) > %s) age" + \
+			" from usatf.member"
+		con.query(q, (race_date.year, "%m%d", USATF_MEM_DATE,
+								race_date.year, "%m%d", race_date.strftime("%m%d")))
 		self.members = {}
 		self.matches = {}
 		r = con.fetch_row()
@@ -98,6 +104,7 @@ class Row_obj:
 		for k in fields:
 			self.__dict__[k] = ref_o.get_field(k, row)
 		self.age = int(self.age)
+		self.usatf_age = 0
 
 class Race_rec:
 	def __init__(self, ref_o, m, row_o):
@@ -175,18 +182,21 @@ with open(fname, 'rb') as f:
 	r = csv.reader(f, delimiter = args.delim)
 	fields =  next(r)
 	ref_o = Ref_obj(fields)
-	#print(json.dumps(ref_o.__dict__))
 	for row in r:
 		row_o = Row_obj(ref_o, row)
-		#print(place_tracker.cur_places)
-		place_tracker.record_runner(row_o.gender, row_o.age)
+		row_o.usatf_age = row_o.age
+		place_tracker.record_runner(row_o.gender, row_o.usatf_age)
 		m = ref_o.find_member(row_o)
 		if m:
+			row_o.usatf_age = int(m.usatf_age)
+			print(row_o.__dict__)
 			race_r = ref_o.get_race_rec(m, row_o)
-			usatf_place_tracker.record_runner(row_o.gender, row_o.age)
+			usatf_place_tracker.record_runner(row_o.gender, row_o.usatf_age)
 			modes = ['overall', 'div', 'gender']
-			if row_o.age >= 40:
+			if row_o.usatf_age >= 40:
 				modes += ['masters']
+				#print("Last places")
+				#print(place_tracker.last_places)
 			for mode in modes:
 				race_r.__dict__['place_' + mode] = place_tracker.get_last_place(mode)
 				race_r.__dict__['place_' + mode + '_usatf'] = usatf_place_tracker.get_last_place(mode)
