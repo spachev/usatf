@@ -37,7 +37,7 @@ class Place_tracker:
 		self.cur_places = { gender + str(age) : 0 for gender
 												 in ('m','f') for age in self.divs }
 		self.cur_places[''] = 0
-		self.last_places = {}
+		self.reset_last_places()
 
 	def inc_div(self, div_name, mode):
 		#print("inc_div:" + div_name + "," + mode)
@@ -54,7 +54,11 @@ class Place_tracker:
 				return str(cutoff)
 		return str(MAX_AGE)
 
+	def reset_last_places(self):
+		self.last_places = {}
+
 	def record_runner(self, gender, age):
+		self.reset_last_places()
 		age = int(age)
 		self.inc_div('', 'overall')
 		self.inc_div(gender, 'gender')
@@ -116,6 +120,12 @@ class Race_rec:
 		for k in ('overall', 'gender', 'div', 'gender_usatf', 'div_usatf',
 						'masters', 'masters_usatf'):
 			self.__dict__['place_' + k ] = 0
+
+class Race_records:
+	def __init__(self):
+		self.records = []
+	def add_records(self, r):
+		self.records.append(r)
 
 class Ref_obj:
 	def __init__(self, fields):
@@ -193,12 +203,16 @@ with open(fname, 'rb') as f:
 			race_r = ref_o.get_race_rec(m, row_o)
 			usatf_place_tracker.record_runner(row_o.gender, row_o.usatf_age)
 			modes = ['overall', 'div', 'gender']
+			usatf_modes = modes[:]
 			if row_o.usatf_age >= 40:
-				modes += ['masters']
+				usatf_modes += ['masters']
 				#print("Last places")
 				#print(place_tracker.last_places)
+			if row_o.age >= 40:
+				modes += ['masters']
 			for mode in modes:
 				race_r.__dict__['place_' + mode] = place_tracker.get_last_place(mode)
+			for mode in usatf_modes:
 				race_r.__dict__['place_' + mode + '_usatf'] = usatf_place_tracker.get_last_place(mode)
 			print(race_r.__dict__)
 
