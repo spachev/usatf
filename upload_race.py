@@ -124,8 +124,19 @@ class Race_rec:
 class Race_records:
 	def __init__(self):
 		self.records = []
-	def add_records(self, r):
+	def add_record(self, r):
 		self.records.append(r)
+	def db_insert(self):
+		if len(self.records) == 0:
+			return
+		r = self.records[0]
+		fields = list(k for k in r.__dict__)
+		row_expr = "(" + "%s," * (len(fields) - 1) + "%s)"
+		q = "insert into usatf.race_results (" + ",".join(fields) + \
+			") values " + (row_expr + ",") * (len(self.records) - 1) + row_expr
+		vals = list((r.__dict__[k] for r in self.records for k in fields))
+		print(vals)
+		con.query(q, vals)
 
 class Ref_obj:
 	def __init__(self, fields):
@@ -187,6 +198,7 @@ members = Members(race.date)
 #print(sorted(members.members.keys()))
 place_tracker = Place_tracker()
 usatf_place_tracker = Place_tracker()
+records = Race_records()
 
 with open(fname, 'rb') as f:
 	r = csv.reader(f, delimiter = args.delim)
@@ -215,5 +227,7 @@ with open(fname, 'rb') as f:
 			for mode in usatf_modes:
 				race_r.__dict__['place_' + mode + '_usatf'] = usatf_place_tracker.get_last_place(mode)
 			print(race_r.__dict__)
-
+			records.add_record(race_r)
+	print("Inserting")
+	records.db_insert()
 con.close()

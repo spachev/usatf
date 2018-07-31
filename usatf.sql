@@ -31,6 +31,7 @@ create table `race_results`
 	`chip_time_ms` int unsigned not null,
 	`gun_time_ms` int unsigned not null,
 	`place_overall` int unsigned not null,
+	`place_overall_usatf` int unsigned not null,
  	`place_gender` int unsigned not null,
  	`place_div` int unsigned not null,
  	`place_gender_usatf` int unsigned not null,
