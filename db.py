@@ -36,3 +36,11 @@ class DB:
 	def fetch_row(self):
 		return self.cursor.fetchone()
 
+	def fetch_all(self):
+		res = []
+		while True:
+			r = self.fetch_row()
+			if not r:
+				break
+			res.append(r)
+		return res

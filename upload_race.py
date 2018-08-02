@@ -180,7 +180,7 @@ def time_to_ms(t):
 if len(sys.argv) < 2:
 	fatal("Missing file name argument")
 
-parser = argparse.ArgumentParser(description='Manage races')
+parser = argparse.ArgumentParser(description='Upload races')
 parser.add_argument('--file', help='Race CSV file', required=True)
 parser.add_argument('--delim', help='CSV file field delimiter', default=';')
 parser.add_argument('--race-name', help='Race Name', required=True)
