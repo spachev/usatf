@@ -4,9 +4,7 @@ from db import DB
 import argparse
 import json
 import re
-
-MAX_AGE = 10000
-USATF_MEM_DATE = "0630"
+from constants import *
 
 def get_race(race_name, race_date, race_dist_cm):
 	race = get_race_from_db(race_name, race_date)
@@ -32,7 +30,7 @@ def create_race(race_name, race_date, race_dist_cm):
 
 class Place_tracker:
 	def __init__(self):
-		self.div_cutoffs = [11, 14] + range(19, 90, 5)
+		self.div_cutoffs = DIV_CUTOFFS
 		self.divs =  self.div_cutoffs + ["", str(MAX_AGE), "MASTSERS"]
 		self.cur_places = { gender + str(age) : 0 for gender
 												 in ('m','f') for age in self.divs }
