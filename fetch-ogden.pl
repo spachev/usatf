@@ -12,7 +12,7 @@ my $BASE_URL = "https://www.runraceresults.com/Secure/raceResultsAPI.cfm?do=race
 my $DELIM = ";";
 
 my $m = new WWW::Mechanize();
-my @fields = ("place", "name", "gun_time", "gender", "age", "gun_time");
+my @fields = ("place", "name", "chip_time", "gender", "age", "gun_time");
 
 print(join($DELIM, @fields)."\n");
 

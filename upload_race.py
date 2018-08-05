@@ -57,6 +57,7 @@ class Place_tracker:
 
 	def record_runner(self, gender, age):
 		self.reset_last_places()
+		gender = gender.lower()
 		age = int(age)
 		self.inc_div('', 'overall')
 		self.inc_div(gender, 'gender')

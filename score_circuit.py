@@ -13,6 +13,54 @@ class Member:
 		self.races = 0
 		self.usatf_age = int(self.usatf_age)
 
+	def update_mars(self):
+		for t in ['overall', 'masters', 'div']:
+			self.update_mars_for_div(t)
+
+	def get_points_for_race(self, r, div):
+		if not r:
+			return 0
+		k = get_points_key(div, r)
+		if not k in self.__dict__:
+			return 0
+		return self.__dict__[k]
+
+	def set_best_mar(self, div, r, val):
+		self.__dict__[get_best_mar_key(div, r)] = val
+
+	def mul_points_for_race(self, div, r, val):
+		#print(self.__dict__)
+		k = get_points_key(div, r)
+		self.__dict__[k] *= val
+
+	def update_mars_for_div(self, t):
+		best_race = None
+		if t == "masters" and self.usatf_age < MASTERS_AGE:
+			return
+		if t == "div":
+			t = scoreboard.get_div_code(self.usatf_age)
+		div = t
+		for r in scoreboard.races:
+			if int(r.dist_cm) < MAR_DIST_CM:
+				continue
+			if self.get_points_for_race(best_race, div) < \
+					self.get_points_for_race(r, div):
+				if best_race:
+					self.set_best_mar(div, best_race, False)
+				best_race = r
+			else:
+				self.set_best_mar(div, r, False)
+		if best_race:
+			self.mul_points_for_race(div, best_race, 1.5)
+			self.set_best_mar(div, best_race, True)
+
+	def update_hmars_for_div(self, t):
+		return
+
+	def update_hmars(self):
+		for t in ['overall', 'masters', 'div']:
+			self.update_hmars_for_div(t)
+
 	def fits_in_div(self, gender, div):
 		if self.gender.lower() != gender.lower():
 			return False
@@ -132,6 +180,12 @@ class Scoreboard:
 			html += self.html_member_placing_for_race(m, div, r)
 		return html
 
+	def update_scores(self):
+		for m_key in self.members:
+			m = self.members[m_key]
+			m.update_mars()
+			m.update_hmars()
+
 	def html_div_scoring(self, gender, div):
 		html = ""
 		for r in self.races:
@@ -147,14 +201,15 @@ def get_points(place):
 	return (PLACE_POINTS_CUTOFF - PLACE_HOP_CUTOFF) + place_diff * (place_diff + 1) / 2
 
 def get_points_key(t, r):
-	return "points_" + t + "_" + str(r.id)
+	return "points_" + str(t) + "_" + str(r.id)
+
+def get_best_mar_key(div, r):
+	return "best_mar_" + str(div) + "_" + str(r.id)
 
 def get_place_key(t, r):
 	return "place_" + t + "_" + str(r.id)
 
 def score_race(r):
-	html = "<table class='circuit' align='center'>\n"
-	html += "<tr><th colspan='100%'>" + str(r.name) + "</th></tr>\n"
 	con.query("select * from usatf.race_results where race_id = %s order by place_overall",
 						[int(r.id)])
 	while True:
@@ -174,11 +229,17 @@ def score_race(r):
 			place = rr_rec.__dict__["place_" + t + "_usatf"]
 			m.__dict__[k_points] = get_points(place)
 			m.__dict__[k_place] = place
+			m.races += 1
+
 		#print(m.__dict__)
-	scoreboard.build_div_lists()
+	scoreboard.build_div_lists_for_race(r)
+
+def html_race_scores(r):
+	html = "<table class='circuit' align='center'>\n"
+	html += "<tr><th colspan='100%'>" + str(r.name) + "</th></tr>\n"
 	for t in ["overall", "masters"] + scoreboard.get_div_list():
 		for gender in ['m', 'f']:
-			html += scoreboard.html_div_scoring(gender, t)
+			html += scoreboard.html_div_scoring_for_race(r, gender, t)
 	html += "</table>"
 	return html
 
@@ -207,9 +268,12 @@ def score_circuit(year):
 	#print("Scoring for " + str(year))
 	scoreboard.races = get_races(year)
 	#print(races)
-	print(get_circuit_css())
 	for r in scoreboard.races:
-		print(score_race(r))
+		score_race(r)
+	print(get_circuit_css())
+	scoreboard.update_scores()
+	for r in scoreboard.races:
+		print(html_race_scores(r))
 
 def get_races(year):
 	con.query("select * from usatf.race where date between %s and %s",
