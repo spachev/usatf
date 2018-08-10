@@ -13,14 +13,23 @@ class Member:
 		self.races = 0
 		self.usatf_age = int(self.usatf_age)
 
+	def update_bonus_points(self):
+		if self.races <= BONUS_POINTS_DOUBLE_CUTOFF:
+			self.bonus_points = self.races
+			return
+		self.bonus_points = BONUS_POINTS_DOUBLE_CUTOFF + \
+			(self.races - BONUS_POINTS_DOUBLE_CUTOFF) * 2
+
 	def update_total_points(self):
 		for t in ['overall', 'masters', 'div']:
 			points_var = t + "_points"
+			total_points_var = t + "_total_points"
 			self.__dict__[points_var] = 0
 			if t == "div":
 				t = scoreboard.get_div_code(self.usatf_age)
 			for r in scoreboard.races:
 				self.__dict__[points_var] += self.get_points_for_race(r,t)
+			self.__dict__[total_points_var] = self.__dict__[points_var] + self.bonus_points
 
 	def update_mars(self):
 		for t in ['overall', 'masters', 'div']:
@@ -91,9 +100,14 @@ class Scoreboard:
 		self.members = {}
 		self.races = None
 		self.race_lists = {}
-		self.placing_fields = ['fname', 'lname', 'place', 'points']
+		self.race_placing_fields = ['place', 'fname', 'lname', 'points']
+		self.placing_fields = self.race_placing_fields +  ['bonus_points',
+			'total_points']
+		self.placing_fields.insert(3, 'races')
 		self.field_display = {'fname' : 'First Name', 'lname': 'Last Name',
-			'place' : 'Circuit Place', 'points':'Circuit Points'
+			'place' : 'Circuit Place', 'points':'Regular Points',
+			'races' : 'Races',
+			'bonus_points':'Bonus Points', 'total_points': 'Total Points'
 		}
 		self.div_part_names = {'overall':'Overall', 'm': 'Men', 'f':'Women',
 			'masters':'Masters'}
@@ -115,21 +129,25 @@ class Scoreboard:
 		return div
 
 	def get_display_val(self, m, k, div, r = None):
-		if k in ["place", "points"]:
+		if k in ["place", "points", "total_points"]:
 			if r == None:
 				k = self.general_div(div) + "_" + k
 			else:
 				k += "_" + str(div) + "_" + str(r.id)
 		return str(m.__dict__[k])
 
-	def html_field_headers(self):
+	def html_field_headers(self, r):
+		if r:
+			fields = self.race_placing_fields
+		else:
+			fields = self.placing_fields
 		return "<tr><td>" + "</td><td>".join(
-			self.field_display[k] for k in self.placing_fields) + "</td></tr>"
+			self.field_display[k] for k in fields) + "</td></tr>"
 
 	def html_member_placing_for_race(self, m, div, r):
 		return "<tr><td>" + \
 		"</td><td>".join(self.get_display_val(m, k, div, r) \
-		for k in self.placing_fields) + \
+		for k in self.race_placing_fields) + \
 		"</td></tr>"
 
 	def get_member(self, rr_rec):
@@ -200,7 +218,7 @@ class Scoreboard:
 			return ""
 		html =  "<tr><td class='circuit_title' colspan='100%'>" + \
 			self.get_div_name(full_div) + "</td></tr>\n"
-		html += scoreboard.html_field_headers()
+		html += scoreboard.html_field_headers(r)
 		for m in self.div_lists_by_race[r.id][k]:
 			html += self.html_member_placing_for_race(m, div, r)
 		return html
@@ -210,6 +228,7 @@ class Scoreboard:
 			m = self.members[m_key]
 			m.update_mars()
 			m.update_hmars()
+			m.update_bonus_points()
 			m.update_total_points()
 
 	def html_member_placing_overall(self, m, div):
@@ -220,7 +239,7 @@ class Scoreboard:
 
 	def html_div_scoring_total(self, gender, div):
 		runners = []
-		k = self.general_div(div) + "_points"
+		k = self.general_div(div) + "_total_points"
 		for m_key in self.members:
 			m = self.members[m_key]
 			if not m.fits_in_div(gender, div):
@@ -237,7 +256,7 @@ class Scoreboard:
 		full_div = str(div) + "_" + gender.lower()
 		div_name = self.get_div_name(full_div)
 		html = "<tr><td class='circuit_title' colspan='100%'>" + div_name + "</tr>\n"
-		html += self.html_field_headers()
+		html += self.html_field_headers(None)
 		for m in runners:
 			html += self.html_member_placing_overall(m, div)
 		return html
@@ -285,7 +304,7 @@ def score_race(r):
 			place = rr_rec.__dict__["place_" + t + "_usatf"]
 			m.__dict__[k_points] = get_points(place)
 			m.__dict__[k_place] = place
-			m.races += 1
+		m.races += 1
 
 		#print(m.__dict__)
 	scoreboard.build_div_lists_for_race(r)
@@ -295,8 +314,19 @@ def get_race_name(r):
 		return str(r.name)
 	return "Total scores"
 
+def html_race_tag(r):
+	if not r:
+		return "race_all"
+	return "race_" + str(r.id)
+
+def html_race_anchor(r):
+	return "<a name='" + html_race_tag(r) + "'></a>\n"
+
+def html_race_link(r):
+	return "<a href='#" + html_race_tag(r) + "'>" + get_race_name(r) + "</a>"
+
 def html_race_scores(r):
-	html = "<table class='circuit' align='center'>\n"
+	html = html_race_anchor(r) + "<table class='circuit' align='center'>\n"
 	html += "<tr><th colspan='100%'>" + get_race_name(r) + "</th></tr>\n"
 	for t in ["overall", "masters"] + scoreboard.get_div_list():
 		for gender in ['m', 'f']:
@@ -311,6 +341,7 @@ def get_circuit_css():
 	{
 		border: 1px solid black;
 		border-collapse: collapse;
+		margin-bottom: 10px;
 	}
 	table.circuit th,td
 	{
@@ -331,11 +362,16 @@ def score_circuit(year):
 	#print(races)
 	for r in scoreboard.races:
 		score_race(r)
-	print(get_circuit_css())
 	scoreboard.update_scores()
-	races = scoreboard.races + [None] # for total scores
+	races = [None] + scoreboard.races # None for total
+	html = get_circuit_css()
+	races_html = ""
+	links_html = ""
 	for r in races:
-		print(html_race_scores(r))
+		links_html += html_race_link(r) + "<br/>"
+		races_html += html_race_anchor(r) + html_race_scores(r)
+	html += "<div align='center'>" + links_html + "</div>" + races_html
+	print(html)
 
 def get_races(year):
 	con.query("select * from usatf.race where date between %s and %s",
