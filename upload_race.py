@@ -92,7 +92,9 @@ class Members:
 		if k in self.matches:
 			raise Exception("Member " + str(k) + " already matched")
 		#print("Checking key " + k)
+		#print " ".join(self.members.keys())
 		if k not in self.members:
+			#print("no match for key " + k)
 			return None
 		m_list = self.members[k]
 		if len(m_list) == 1:
@@ -129,6 +131,8 @@ class Race_records:
 		if len(self.records) == 0:
 			return
 		r = self.records[0]
+		con.query("delete from usatf.race_results where race_id = %s",
+							[r.race_id])
 		fields = list(k for k in r.__dict__)
 		row_expr = "(" + "%s," * (len(fields) - 1) + "%s)"
 		q = "insert into usatf.race_results (" + ",".join(fields) + \
@@ -156,6 +160,8 @@ class Ref_obj:
 		except:
 			if field_name == "lname":
 				return row[self.name].split(' ')[-1]
+			elif field_name == "chip_time":
+				return row[self.gun_time]
 			print("bad field: " + field_name)
 			raise
 
@@ -208,9 +214,10 @@ with open(fname, 'rb') as f:
 		row_o.usatf_age = row_o.age
 		place_tracker.record_runner(row_o.gender, row_o.usatf_age)
 		m = ref_o.find_member(row_o)
+		#print("searching for " + str(row_o.__dict__))
 		if m:
 			row_o.usatf_age = int(m.usatf_age)
-			print(row_o.__dict__)
+			#print(row_o.__dict__)
 			race_r = ref_o.get_race_rec(m, row_o)
 			usatf_place_tracker.record_runner(row_o.gender, row_o.usatf_age)
 			modes = ['overall', 'div', 'gender']
