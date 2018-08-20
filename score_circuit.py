@@ -174,7 +174,7 @@ class Scoreboard:
 
 	def get_div_code(self, age):
 		for i in range(0, len(DIV_CUTOFFS)):
-			if age < DIV_CUTOFFS[i]:
+			if age <= DIV_CUTOFFS[i]:
 				return i
 		return i + 1
 

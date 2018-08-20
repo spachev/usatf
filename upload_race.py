@@ -202,6 +202,7 @@ print(race)
 members = Members(race.date)
 #print(sorted(members.members.keys()))
 place_tracker = Place_tracker()
+#print "div for 11 is " + str(place_tracker.get_div(11))
 usatf_place_tracker = Place_tracker()
 records = Race_records()
 
@@ -233,6 +234,7 @@ with open(fname, 'rb') as f:
 			for mode in usatf_modes:
 				race_r.__dict__['place_' + mode + '_usatf'] = usatf_place_tracker.get_last_place(mode)
 			print(race_r.__dict__)
+			print(row_o.__dict__)
 			records.add_record(race_r)
 	print("Inserting")
 	records.db_insert()
