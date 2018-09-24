@@ -66,23 +66,24 @@ class Member:
 		if t == "div":
 			t = scoreboard.get_div_code(self.usatf_age)
 		div = t
-		for r in scoreboard.races:
-			if int(r.dist_cm) < MAR_DIST_CM:
-				continue
-			if self.get_points_for_race(best_race, div) < \
-					self.get_points_for_race(r, div):
-				if best_race:
-					best2_race = best_race
-					self.set_best2_mar(div, best2_race, False)
-				best_race = r
-				self.set_best_mar(div, best_race, False)
-			else:
-				self.set_best_mar(div, r, False)
+		mars = [r for r in scoreboard.races if r.dist_cm == MAR_DIST_CM and
+			self.get_points_for_race(r, div) > 0]
+		mars.sort(key=lambda r: self.get_points_for_race(r, div), reverse = True)
+		#print("Memeber: " + str(self.__dict__))
+		#print("Marathons: " + str(mars))
+		if len(mars) < 1:
+			return
+		best_race = mars[0]
+		if len(mars) >= 2:
+			best2_race = mars[1]
+		self.set_best_mar(div, best_race, False)
+		if best2_race:
+			self.set_best2_mar(div, best2_race, False)
 		if best_race:
 			self.mul_points_for_race(div, best_race, 1.5)
 			self.set_best_mar(div, best_race, True)
 		if best2_race:
-			self.mul_points_for_race(div, best_race, 1.25)
+			self.mul_points_for_race(div, best2_race, 1.25)
 			self.set_best2_mar(div, best2_race, True)
 
 	def update_hmars_for_div(self, t):
