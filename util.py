@@ -9,3 +9,6 @@ def fatal(msg):
 
 def usatf_age_expr():
 	return "%s - year(bdate) - (date_format(bdate, %s) > %s) usatf_age"
+
+def get_input(msg):
+	return raw_input(msg)

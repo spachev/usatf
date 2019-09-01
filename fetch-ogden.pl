@@ -7,7 +7,7 @@ use HTML::TreeBuilder::XPath;
 use WWW::Mechanize;
 my $LAST_PAGE_START = 1101;
 my $PAGE_SIZE = 100;
-my $BASE_URL = "https://www.runraceresults.com/Secure/raceResultsAPI.cfm?do=race%3Aresults%3Aoneclick&EVID=RCQW2018&RCID=1&TYPE=overall";
+my $BASE_URL = "https://www.runraceresults.com/Secure/raceResultsAPI.cfm?do=race%3Aresults%3Aoneclick&EVID=RCQW2019&RCID=1&TYPE=overall";
 
 my $DELIM = ";";
 

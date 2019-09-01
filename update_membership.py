@@ -12,7 +12,9 @@ con = DB()
 con.connect()
 con.query("load data local infile '" + fname +
 	"' replace into table member" +
-	" fields terminated by ',' ignore 1 lines (usatf_no,fname,mname,lname,name_suffix," + "gender,@bdate_str)" +
-	" set bdate = str_to_date(@bdate_str, '%c/%d/%Y')"
+	" fields terminated by ',' optionally enclosed by '\"'" +
+	" ignore 1 lines (usatf_no,fname,mname,lname,name_suffix," 
+	+ "city,gender,@bdate_str)" +
+	" set bdate = str_to_date(@bdate_str, '%Y/%m/%d')"
 )
 con.close()

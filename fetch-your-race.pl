@@ -13,19 +13,19 @@ use WWW::Mechanize;
 my $CB = "cb";
 #my $KEY = "b03774892d16eb08c7ff6d62e3cb86ac";
 my $KEY = "b0572ea058a1b55a7b4d9d18fc9c2630";
-my $API_URL = "https://my5.raceresult.com/RRPublish/data/list.php?callback=".
-	$CB."&key=".$KEY.
-	"&listname=Result+Lists%7CFinisher+List&page=results&contest=0&r=all&l=0&".
-	"&eventid=";
 my $BASE_URL = "https://www.irunutah.com/raceresults/?id=";
 my $race_id;
 my $PLACE_POS = 1;
 my $dist;
 
-GetOptions("race-id=i" => \$race_id, "dist=i" => \$dist) or usage();
+GetOptions("race-id=i" => \$race_id, "dist=i" => \$dist, "key=s" => \$KEY) or usage();
 
 $dist or die "Missing --dist\n";
 $race_id or die "Missing --race-id\n";
+my $API_URL = "https://my3.raceresult.com/RRPublish/data/list.php?callback=".
+	$CB."&key=".$KEY.
+	"&listname=Result+Lists%7CAll+Finishers&page=results&contest=0&r=all&l=0&".
+	"&eventid=";
 
 my $m = new WWW::Mechanize();
 my $event_id = get_event_id();
@@ -37,8 +37,8 @@ my $o = decode_json($1);
 my $data = $o->{data};
 my $key = find_race_key($data);
 my $res = $data->{$key};
-my $fields = "bib;place;bib;name;gender;age;div_name;pace;gun_time;".
-	"chip_time;div_place;gender_place\n";
+my $fields = "bib;place;bib;name;split_time;gun_time;chip_time;age;div_name;gender;".
+	"\n";
 
 print $fields;
 
@@ -55,10 +55,10 @@ sub find_race_key
 	foreach my $k (keys %$data)
 	{
 		# TODO: when marathons and half marathons appear on itsyourrace, update this code
-		return $k if $k =~ /^\#\d+\_(\d+)k$/ && $1 == $dist;
+		return $k if $k =~ /^\#\d+\_(\d+)k$/i && $1 == $dist;
 	}
 
-	die "Nothing suitables in keys:".join(',', keys %$data)."\n";
+	die "Nothing suitable in keys:".join(',', keys %$data)."\n";
 }
 
 sub usage

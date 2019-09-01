@@ -100,7 +100,13 @@ class Members:
 		if len(m_list) == 1:
 			self.matches[k] = row
 			return m_list[0]
-		raise Exception("Multiple matches for " + str(row.__dict__) + ": " + str(m_list))
+		while True:
+			row_id = int(get_input("Multiple matches for " + str(row.__dict__) + ": " + str(m_list) + "\nenter Row id:"))
+			for m in m_list:
+				if m.id == row_id:
+					self.matches[k] = row
+					return m
+				print("Bad row ID, try again")
 
 class Row_obj:
 	def __init__(self, ref_o, row):
@@ -108,7 +114,10 @@ class Row_obj:
 		fields.append('lname')
 		for k in fields:
 			self.__dict__[k] = ref_o.get_field(k, row)
-		self.age = int(self.age)
+		try:
+		  self.age = int(self.age)
+		except:
+		  fatal("Bad age in row " + str(row))
 		self.usatf_age = 0
 
 class Race_rec:
@@ -145,7 +154,7 @@ class Ref_obj:
 	def __init__(self, fields):
 		fix_fields_re = re.compile(r"\s+")
 		lc_fields = [fix_fields_re.sub("_", f.lower()) for f in fields]
-		for f in ("place", "name", "gun_time", "chip_time", "gender", "age"):
+		for f in ("place", "name", "gun_time", "chip_time", "gender", "age", "time"):
 			try:
 				self.__dict__[f] = lc_fields.index(f)
 			except:
@@ -160,9 +169,14 @@ class Ref_obj:
 		except:
 			if field_name == "lname":
 				return row[self.name].split(' ')[-1]
-			elif field_name == "chip_time":
+			elif field_name == "chip_time" or field_name == "time":
 				return row[self.gun_time]
+			elif field_name == "gun_time" and self.time != None:
+				print("row:" + ';'.join(row))
+				print("time ind: " + str(self.time))
+				return row[self.time]
 			print("bad field: " + field_name)
+			print("row:" + ';'.join(row))
 			raise
 
 	def find_member(self, row_o):
@@ -209,8 +223,10 @@ records = Race_records()
 with open(fname, 'rb') as f:
 	r = csv.reader(f, delimiter = args.delim)
 	fields =  next(r)
+	fields = [f.strip() for f in fields]
 	ref_o = Ref_obj(fields)
 	for row in r:
+		row = [v.strip() for v in row]
 		row_o = Row_obj(ref_o, row)
 		row_o.usatf_age = row_o.age
 		place_tracker.record_runner(row_o.gender, row_o.usatf_age)
