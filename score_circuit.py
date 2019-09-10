@@ -2,6 +2,7 @@ from util import *
 from db import DB
 import argparse
 import datetime
+import re
 from constants import *
 
 class Member:
@@ -349,7 +350,7 @@ def score_race(r):
 
 def get_race_name(r):
 	if r:
-		return str(r.name)
+		return RACE_NAME_FIX_RE.sub("", str(r.name))
 	return "Total scores"
 
 def html_race_tag(r):
@@ -428,6 +429,7 @@ now = datetime.datetime.now()
 parser = argparse.ArgumentParser(description='Score races')
 parser.add_argument('--year', default=now.year, help='Year', required=False)
 args = parser.parse_args()
+RACE_NAME_FIX_RE = re.compile("\\s*" + str(args.year) +"\\s*")
 
 con = DB()
 con.connect()

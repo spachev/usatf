@@ -101,7 +101,9 @@ class Members:
 			self.matches[k] = row
 			return m_list[0]
 		while True:
-			row_id = int(get_input("Multiple matches for " + str(row.__dict__) + ": " + str(m_list) + "\nenter Row id:"))
+			row_id = int(get_input("Multiple matches for " + str(row.__dict__) + ": " + str(m_list) + "\nenter Row id (0 for no match):"))
+			if row_id == 0:
+				return None
 			for m in m_list:
 				if m.id == row_id:
 					self.matches[k] = row
@@ -212,7 +214,6 @@ fname = args.file
 con = DB()
 con.connect()
 race = get_race(args.race_name, args.race_date, args.race_dist_cm)
-print(race)
 members = Members(race.date)
 #print(sorted(members.members.keys()))
 place_tracker = Place_tracker()
