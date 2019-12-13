@@ -16,6 +16,7 @@ print "</tr>\n";
 while (<>)
 {
   my ($name, $dist, $date, $url, $person, $emails, $phone);
+  next if /^#/;
   next unless 
     (/(\w[\w\s\'\&\-]+\w)\s+\-\s+(.*)\s+(http\S+)\s+([\w\s]+)\s+$EMAILS_EXPR\s+($PHONE_EXPR)*/);
   $name = $1;
