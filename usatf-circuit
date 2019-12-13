@@ -1,0 +1,81 @@
+#! /usr/bin/perl
+
+$/ = "\n\n";
+my $PHONE_EXPR = '\d{3}\-\d{3}-\d{4}';
+my $EMAILS_EXPR = '((\s*\S+\@\S+)+)';
+
+@cols = ('Race Name', 'Distance', 'Date', 'Contact');
+
+print "<table border='1'>\n<tr>\n";
+foreach my $c (@cols)
+{
+  tag("th", $c);    
+}
+print "</tr>\n";
+
+while (<>)
+{
+  my ($name, $dist, $date, $url, $person, $emails, $phone);
+  next unless 
+    (/(\w[\w\s\'\&\-]+\w)\s+\-\s+(.*)\s+(http\S+)\s+([\w\s]+)\s+$EMAILS_EXPR\s+($PHONE_EXPR)*/);
+  $name = $1;
+  $dist = get_dist($name);
+  $date = $2;
+  $url = $3;
+  $person = $4;
+  $emails = $5;
+  $phone = $7;
+  print "<tr>\n";
+  tag("td", $name);
+  tag("td", $dist);
+  tag("td", $date);
+  tag("td", get_contact($url, $person, $emails, $phone));
+  print "</tr>\n";
+  #print "name: $name date: $date url: dist: $dist $url emails: $emails phone: $phone\n";
+}
+
+print "</table>\n";
+
+sub get_contact
+{
+  my ($url, $person, $emails, $phone) = @_;
+  return get_link($url)."<br/>".$person."<br/>".get_emails($emails).
+    "<br/>".get_phone($phone);
+}
+
+sub get_emails
+{
+  my ($emails) = @_;
+  $emails =~ /^\s*(.*)\s*$/;
+  return join('<br/>', map {"<a href='mailto:$_'>$_</a>"}  split /\s+/, $1);
+}
+
+sub get_phone
+{
+  my ($phone) = @_;
+  return $phone ? "<a href='tel:$phone'>$phone</a>" : "";
+}
+
+sub get_dist
+{
+  my ($name) = @_;
+  return "5K" if $name =~ /days|5\s*K/i;
+  return "10K" if $name =~ /days|10\s*K/i;
+  return "Half-Marathon" if $name =~ /half/i;
+  return "Marathon" if $name =~ /marathon/i;
+  return "3000m" if $name =~ /3000/;
+  return "1 Mile" if $name =~ /\bMile\b/i;
+  return "";
+}
+
+sub get_link
+{
+  my ($url) = @_;
+  return "<a href='$url'>$url</a>";
+}
+
+sub tag
+{
+  my ($tag, $txt,$attr) = @_;
+  print "<$tag $attr>$txt</$tag>\n";
+}

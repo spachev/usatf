@@ -224,10 +224,10 @@ records = Race_records()
 with open(fname, 'rb') as f:
 	r = csv.reader(f, delimiter = args.delim)
 	fields =  next(r)
-	fields = [f.strip() for f in fields]
+	fields = [cleanup_str(f) for f in fields]
 	ref_o = Ref_obj(fields)
 	for row in r:
-		row = [v.strip() for v in row]
+		row = [cleanup_str(v) for v in row]
 		row_o = Row_obj(ref_o, row)
 		row_o.usatf_age = row_o.age
 		place_tracker.record_runner(row_o.gender, row_o.usatf_age)
