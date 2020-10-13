@@ -13,8 +13,8 @@ class SS_Fetcher(Sel):
 			+ str(race_id)
 		self.fix_q = None
 		self.delim = ";"
-		self.cols = ["Bib", "Name", "Div", "Gender", "Age", "Place Overall",
-				"Place Gender", "Place Div", "Time"]
+		self.cols = ["Bib", "Name", "Gender", "Age", "Time", "Div", "Place Overall",
+				"Place Gender", "Place Div"]
 		self.gender_pos = self.cols.index("Gender")
 		self.div_pos = self.cols.index("Div")
 
@@ -55,6 +55,7 @@ class SS_Fetcher(Sel):
 					m_fixed = int(t_fixed / 60)
 					t_fixed -= m_fixed * 60
 					row.append("{:02d}:{:02d}:{:04.1f}".format(h_fixed, m_fixed, t_fixed))
+			if (i + 1) % len(self.cols) == 0:
 				lc_div = row[self.div_pos].lower()
 				has_female = ("female" in lc_div or "athena" in lc_div or "filly" in lc_div)
 				has_male = ((not "female" in lc_div and "male" in lc_div) or "clydesdale" in lc_div)

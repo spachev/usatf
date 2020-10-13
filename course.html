@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+<head>
+<title>Course Measurement Tools</title>
+</head>
+<body>
+<style>
+input {
+	width: 50px;
+	border: 1px solid black;
+	background-color: rgb(240, 240, 255);
+}
+
+textarea {
+	width: 200px;
+	height: 100px;
+}
+
+td.prompt {
+	width: 100px;
+	font-size: 10px;
+}
+
+span.units {
+	font-size: 10px;
+}
+
+.output {
+	background-color: rgb(255, 240, 240);
+	width: 200px;
+	height: 200px;
+	border: 1px solid black;
+}
+
+</style>
+<h3>
+	Calibration
+</h3>
+<form name="calibration">
+	<table>
+		<tr>
+			<td class="prompt">Calibration course length</td><td><input name="calib_ft" onInput="update_calibration()"/> <span class="units">ft</span>
+			 <input name="calib_in"/> <span class="units">inches</span></td></tr>
+		</tr>
+		<tr>
+			<td class="prompt">Calibration checkpoint counter readings</td>
+			<td><textarea name="calibration_data" onInput="update_calibration()"></textarea></td>
+		</tr>
+		<tr>
+			<td class="prompt">Counter initial:</td><td><input name="counter_initial" onInput="update_calibration()"/></td></td>
+		</tr>
+		<tr>
+			<td class="prompt">
+				Course distance
+			</td>
+			<td>
+				<input name="distance" onInput="update_calibration()" />
+			</td>
+		</td>
+		</tr>
+		<tr>
+			<td class="output" colspan="2" id="output">
+			</td>
+		</tr>
+	</table>
+</form>
+<script>
+function update_calibration()
+{
+	var f = document.forms["calibration"];
+	var readings = f.calibration_data.value.match(/(\d+)/g);
+	var delta_sign = 1;
+
+	if (!readings)
+		return;
+
+	var deltas = [];
+	for (var i = 1; i < readings.length; i++)
+	{
+		var d = readings[i] - readings[i - 1];
+		if (d < 0)
+			delta_sign = -1;
+
+		deltas.push(Math.abs(d));
+	}
+
+	var out = f.calibration_data.value + deltas.join(',');
+
+	var calib_d_ft = parseInt(f.calib_ft.value);
+	var calib_d_in = parseFloat(f.calib_in.value);
+
+	var d = calib_d_ft + calib_d_in / 12;
+	var mile_clicks = 0;
+
+	if (d)
+	{
+		var clicks_avg = deltas.reduce(function (a, b) { return a + b;}) / deltas.length;
+		mile_clicks = 5280 / d * clicks_avg * 1.001;
+		out += "\n Clicks avg: " + clicks_avg + "\n Mile Constant: " + mile_clicks;
+	}
+
+	var course_d = f.distance.value;
+
+	if (course_d)
+	{
+		switch (course_d.toLowerCase())
+		{
+			case "mar":
+				course_d = 42.195;
+				break;
+			case "hm":
+				course_d = 21.0975;
+				break;
+		}
+
+		console.log("Course d: ", course_d);
+
+		var MILE = 1.60934;
+		var start = parseInt(f.counter_initial.value);
+		var final = start + delta_sign * course_d / MILE * mile_clicks;
+
+		out + "\nFINAL: " + final;
+
+		for (var cur_clicks = start, cur_d = 0, miles = 0; cur_d < course_d;
+		  cur_clicks += mile_clicks * delta_sign,
+			cur_d += MILE, miles++)
+		{
+			out += "\nMILE " + miles + ": " + Math.round(cur_clicks);
+		}
+	}
+
+	document.getElementById("output").innerText = out;
+}
+</script>
+</body>
+</html>
