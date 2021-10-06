@@ -116,17 +116,22 @@ function update_calibration()
 		console.log("Course d: ", course_d);
 
 		var MILE = 1.60934;
+		var COUNTER_MAX = 1000000;
 		var start = parseInt(f.counter_initial.value);
 		var final = start + delta_sign * course_d / MILE * mile_clicks;
-
-		out + "\nFINAL: " + final;
+		if (final < 0)
+			final += COUNTER_MAX;
 
 		for (var cur_clicks = start, cur_d = 0, miles = 0; cur_d < course_d;
 		  cur_clicks += mile_clicks * delta_sign,
 			cur_d += MILE, miles++)
 		{
+			if (cur_clicks < 0)
+				cur_clicks += COUNTER_MAX;
 			out += "\nMILE " + miles + ": " + Math.round(cur_clicks);
 		}
+
+		out += "\nFINAL: " + final;
 	}
 
 	document.getElementById("output").innerText = out;

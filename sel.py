@@ -13,7 +13,8 @@ class Sel:
 		self.display = os.getenv("SEL_DISPLAY", ":99")
 		os.environ["DISPLAY"] = self.display
 		chrome_options = webdriver.ChromeOptions()
-		self.driver = webdriver.Chrome(chrome_options=chrome_options)
+		self.driver = webdriver.Chrome(chrome_options=chrome_options,
+																 service_args=["--verbose", "--log-path=chromedriver.log"])
 		self.timeout = 60
 		self.wait = WebDriverWait(self.driver, self.timeout)
 		self.max_dump_size = 65536

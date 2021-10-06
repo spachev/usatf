@@ -9,7 +9,7 @@ my $EMAILS_EXPR = '((\s*\S+\@\S+)+)';
 print "<table border='1'>\n<tr>\n";
 foreach my $c (@cols)
 {
-  tag("th", $c);    
+  tag("th", $c);
 }
 print "</tr>\n";
 
@@ -17,8 +17,8 @@ while (<>)
 {
   my ($name, $dist, $date, $url, $person, $emails, $phone);
   next if /^#/;
-  next unless 
-    (/(\w[\w\s\'\&\-]+\w)\s+\-\s+(.*)\s+(http\S+)\s+([\w\s]+)\s+$EMAILS_EXPR\s+($PHONE_EXPR)*/);
+  next unless
+    (/(\w[\w\s\'\&\-]+\w)\s+\-\s+(.*)\s+((?:http|https)\S+)\s+([\w\s]+)\s+$EMAILS_EXPR\s+($PHONE_EXPR)*/);
   $name = $1;
   $dist = get_dist($name);
   $date = $2;

@@ -4,7 +4,10 @@ from db import DB
 import argparse
 import json
 import re
+from age_grader import Age_grader
 from constants import *
+
+age_grader = Age_grader()
 
 def get_race(race_name, race_date, race_dist_cm):
 	race = get_race_from_db(race_name, race_date)
@@ -12,6 +15,7 @@ def get_race(race_name, race_date, race_dist_cm):
 		if race_date == None or race_dist_cm == None:
 			raise Exception("Race not found in the database, "
 				+ "and date or distance not specified, cannot create")
+		print("creating race")
 		create_race(race_name, race_date, race_dist_cm)
 	return get_race_from_db(race_name, race_date)
 
@@ -91,8 +95,8 @@ class Members:
 		k = self.get_member_key(row)
 		if k in self.matches:
 			raise Exception("Member " + str(k) + " already matched")
-		#print("Checking key " + k)
-		#print " ".join(self.members.keys())
+		# print("Checking key " + k)
+		# print " ".join(self.members.keys())
 		if k not in self.members:
 			#print("no match for key " + k)
 			return None
@@ -125,26 +129,42 @@ class Row_obj:
 class Race_rec:
 	def __init__(self, ref_o, m, row_o):
 		self.member_id = m.id
+		self.member = m
 		self.race_id = race.id
+		self.dist_cm = race.dist_cm
 		self.gun_time_ms = time_to_ms(row_o.gun_time)
 		self.chip_time_ms = time_to_ms(row_o.chip_time)
 		# self.place = parse_place(row_o.place)
 		for k in ('overall', 'gender', 'div', 'gender_usatf', 'div_usatf',
-						'masters', 'masters_usatf'):
+						'masters', 'masters_usatf', 'gender_age_grade_usatf'):
 			self.__dict__['place_' + k ] = 0
+
+	def compute_age_grade(self, runner):
+		self.age_grade = age_grader.grade_for_race(runner, self)
 
 class Race_records:
 	def __init__(self):
 		self.records = []
 	def add_record(self, r):
 		self.records.append(r)
+	def rank_age_graded_gender(self, gender):
+		it = iter(sorted([r for r in self.records if r.member.gender.lower().startswith(gender) ], key=lambda r: -r.age_grade))
+		place = 1
+		for r in it:
+			r.place_gender_age_grade_usatf = place
+			place += 1
+
+	def rank_age_graded(self):
+		for gender in ['m', 'f']:
+			self.rank_age_graded_gender(gender)
+
 	def db_insert(self):
 		if len(self.records) == 0:
 			return
 		r = self.records[0]
 		con.query("delete from usatf.race_results where race_id = %s",
 							[r.race_id])
-		fields = list(k for k in r.__dict__)
+		fields = list(k for k in r.__dict__ if k not in ('dist_cm','member'))
 		row_expr = "(" + "%s," * (len(fields) - 1) + "%s)"
 		q = "insert into usatf.race_results (" + ",".join(fields) + \
 			") values " + (row_expr + ",") * (len(self.records) - 1) + row_expr
@@ -155,12 +175,17 @@ class Race_records:
 class Ref_obj:
 	def __init__(self, fields):
 		fix_fields_re = re.compile(r"\s+")
-		lc_fields = [fix_fields_re.sub("_", f.lower()) for f in fields]
-		for f in ("place", "name", "gun_time", "chip_time", "gender", "age", "time"):
+		lc_fields = [fix_fields_re.sub("_", f.lower().strip()) for f in fields]
+		print(lc_fields)
+		for f in ("place", "name", "gun_time", "chip_time", "gender", "age", "time", "first_name", "last_name"):
 			try:
 				self.__dict__[f] = lc_fields.index(f)
 			except:
 				self.__dict__[f] = None
+		if self.gun_time is None:
+			self.gun_time = self.time
+	def __str__(self):
+		return "{}".format(self.__dict__)
 
 	def get_race_rec(self, m, row_o):
 		return Race_rec(self, m, row_o)
@@ -169,7 +194,14 @@ class Ref_obj:
 		try:
 			return row[self.__dict__[field_name]]
 		except:
+			if field_name in ('first_name', 'last_name'):
+				return None
+			if field_name == "name":
+				if self.first_name is not None and self.last_name is not None:
+					return row[self.first_name] + " " + row[self.last_name]
 			if field_name == "lname":
+				if self.last_name is not None:
+					return row[self.last_name]
 				return row[self.name].split(' ')[-1]
 			elif field_name == "chip_time" or field_name == "time":
 				return row[self.gun_time]
@@ -189,14 +221,6 @@ def parse_place(p):
 		return int(filter(str.isdigit, p))
 	except:
 		return 0
-
-def time_to_ms(t):
-	print(t)
-	parts = str(t).split(':')
-	res = 0
-	for p in parts:
-		res = res * 60.0 + float(p)
-	return int(res * 1000)
 
 if len(sys.argv) < 2:
 	fatal("Missing file name argument")
@@ -225,18 +249,23 @@ with open(fname, 'rb') as f:
 	r = csv.reader(f, delimiter = args.delim)
 	fields =  next(r)
 	fields = [cleanup_str(f) for f in fields]
+	print("fields: {}".format(fields))
 	ref_o = Ref_obj(fields)
+	print('ref_o: {}'.format(ref_o))
 	for row in r:
 		row = [cleanup_str(v) for v in row]
 		row_o = Row_obj(ref_o, row)
 		row_o.usatf_age = row_o.age
 		place_tracker.record_runner(row_o.gender, row_o.usatf_age)
-		m = ref_o.find_member(row_o)
 		#print("searching for " + str(row_o.__dict__))
+		if not row_o.time:
+			continue
+		m = ref_o.find_member(row_o)
 		if m:
 			row_o.usatf_age = int(m.usatf_age)
 			#print(row_o.__dict__)
 			race_r = ref_o.get_race_rec(m, row_o)
+			race_r.compute_age_grade(m)
 			usatf_place_tracker.record_runner(row_o.gender, row_o.usatf_age)
 			modes = ['overall', 'div', 'gender']
 			usatf_modes = modes[:]
@@ -254,5 +283,6 @@ with open(fname, 'rb') as f:
 			print(row_o.__dict__)
 			records.add_record(race_r)
 	print("Inserting")
+	records.rank_age_graded()
 	records.db_insert()
 con.close()

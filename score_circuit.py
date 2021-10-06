@@ -3,7 +3,10 @@ from db import DB
 import argparse
 import datetime
 import re
+import csv
 from constants import *
+from util import *
+
 
 class Member:
 	def __init__(self, r):
@@ -11,10 +14,13 @@ class Member:
 		self.overall_points = 0
 		self.div_points = 0
 		self.masters_points = 0
+		self.age_grade_points = 0
 		self.races = 0
 		self.usatf_age = int(self.usatf_age)
 
 	def update_bonus_points(self):
+		if DISABLE_BONUS:
+			return
 		if self.races <= BONUS_POINTS_DOUBLE_CUTOFF:
 			self.bonus_points = self.races
 			return
@@ -22,7 +28,7 @@ class Member:
 			(self.races - BONUS_POINTS_DOUBLE_CUTOFF) * 2
 
 	def update_total_points(self):
-		for t in ['overall', 'masters', 'div']:
+		for t in ['overall', 'masters', 'div', 'age_grade']:
 			points_var = t + "_points"
 			total_points_var = t + "_total_points"
 			self.__dict__[points_var] = 0
@@ -145,7 +151,10 @@ class Scoreboard:
 		self.div_part_names = {'overall':'Overall', 'm': 'Men', 'f':'Women',
 			'masters':'Masters'}
 		self.div_lists_by_race = {}
-		con.query("select *," + usatf_age_expr() + " from usatf.member", (year, "%m%d",
+		age_year = year
+		if age_year == 2020:
+			age_year += 1 # COVID
+		con.query("select *," + usatf_age_expr() + " from usatf.member", (age_year, "%m%d",
 							USATF_MEM_DATE))
 		while True:
 			r = con.fetch_row()
@@ -332,7 +341,7 @@ def score_race(r):
 			break
 		m = scoreboard.get_member(rr_rec)
 		scoreboard.append_to_race_list(r, m)
-		for t in ["gender", "masters", "div"]:
+		for t in ["gender", "masters", "div", "age_grade"]:
 			t_key = t
 			if t == "div":
 				t_key = str(scoreboard.get_div_code(m.usatf_age))
@@ -413,8 +422,13 @@ def score_circuit(year):
 	print(html)
 
 def get_races(year):
+	year = int(year)
+	start_year = year
+	end_year = year
+	if start_year == 2020:
+		end_year += 1 # COVID
 	con.query("select * from usatf.race where date between %s and %s",
-						(str(year) + "-01-01", str(year) + "-12-31"))
+						(str(start_year) + "-01-01", str(end_year) + "-12-31"))
 	return con.fetch_all()
 
 def test_get_points():

@@ -10,11 +10,11 @@ if len(sys.argv) < 2:
 fname = sys.argv[1]
 con = DB()
 con.connect()
-con.query("load data local infile '" + fname +
+query = ("load data local infile '" + fname +
 	"' replace into table member" +
 	" fields terminated by ',' optionally enclosed by '\"'" +
-	" ignore 1 lines (usatf_no,fname,mname,lname,name_suffix," 
-	+ "city,gender,@bdate_str)" +
-	" set bdate = str_to_date(@bdate_str, '%Y/%m/%d')"
-)
+	" ignore 1 lines (fname,lname,bdate,@gender,@email,usatf_no,@junk,@junk"
+	+ ") set gender=substring(@gender,1,1)")
+print(query)
+con.query(query)
 con.close()

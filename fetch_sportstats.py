@@ -12,18 +12,30 @@ class SS_Fetcher(Sel):
 		self.url = "https://www.sportstats.us/display-results.xhtml?raceid=" \
 			+ str(race_id)
 		self.fix_q = None
+		self.header_printed = False
 		self.delim = ";"
-		self.cols = ["Bib", "Name", "Gender", "Age", "Time", "Div", "Place Overall",
-				"Place Gender", "Place Div"]
-		self.gender_pos = self.cols.index("Gender")
+		self.col_map = {"bib" : "Bib", "name" : "Name", "age": "Age", "finish" : "Time",
+									"gender" : "Gender",
+									"category" : "Div", "rank" : "Place", "gender place" : "Place Gender",
+									"cat. place" : "Place Div"}
+		self.cols = ["Bib", "Name", "Gender", "Div", "Place Overall",
+				"Place Gender", "Place Div", "Time"]
 		self.div_pos = self.cols.index("Div")
+
+	def init_cols(self):
+		els = self.find_many_by_xpath("//tr[@role='row']/th[@role='columnheader' and position() >= " +
+			str(FIRST_COL_POS) + " and position() <= " + str(LAST_COL_POS) + "]/span/span")
+		self.cols = []
+		for i,el in enumerate(els):
+			col_in_page = el.text
+			col_name = self.col_map.get(col_in_page.lower(), col_in_page)
+			self.cols.append(col_name)
 
 	def set_fix_q(self, target_dist, actual_dist):
 		self.fix_q = (float(target_dist) / float(actual_dist)) ** RIEGEL_Q
 		self.cols.append("Adjusted Time")
 
 	def fetch(self):
-		print(self.delim.join(self.cols))
 		self.get(self.url)
 		self.parse_page()
 		n_pages = self.get_n_pages()
@@ -40,7 +52,11 @@ class SS_Fetcher(Sel):
 		return int(el.text.split('/')[1].strip())
 
 	def parse_page(self):
-		els = self.find_many_by_xpath("//tr[@role='row']/td[position() >= " +
+		self.init_cols()
+		if not self.header_printed:
+			print(self.delim.join(self.cols))
+			self.header_printed = True
+		els = self.find_many_by_xpath("//tr[@role='row']/td[@role='gridcell' and position() >= " +
 			str(FIRST_COL_POS) + " and position() <= " + str(LAST_COL_POS) + "]")
 		row = []
 		for i,el in enumerate(els):
@@ -66,6 +82,7 @@ class SS_Fetcher(Sel):
 						gender = "m"
 					row = row[:self.div_pos] + [gender] + row[self.div_pos:]
 				print(self.delim.join(row))
+
 				row = []
 
 
