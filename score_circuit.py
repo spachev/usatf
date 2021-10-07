@@ -37,7 +37,8 @@ class Member:
 			self.__dict__[points_var] = sum(sorted((self.get_points_for_race(r,t)
 				for r in scoreboard.races),reverse=True)[0:MAX_RACES])
 
-			self.__dict__[total_points_var] = self.__dict__[points_var] + self.bonus_points
+			if not DISABLE_BONUS:
+				self.__dict__[total_points_var] = self.__dict__[points_var] + self.bonus_points
 
 	def update_mars(self):
 		for t in ['overall', 'masters', 'div']:
@@ -128,6 +129,8 @@ class Member:
 			return True
 		if div == "masters":
 			return self.usatf_age >= 40
+		if div == "age_grade":
+			return True
 		if (type(div) == int or div.isdigit()) and \
 			int(div) == self.get_div_code():
 				return True
@@ -149,7 +152,7 @@ class Scoreboard:
 			'bonus_points':'Bonus Points', 'total_points': 'Total Points'
 		}
 		self.div_part_names = {'overall':'Overall', 'm': 'Men', 'f':'Women',
-			'masters':'Masters'}
+			'masters':'Masters', 'gender_age_grade': 'Age Grade'}
 		self.div_lists_by_race = {}
 		age_year = year
 		if age_year == 2020:
@@ -171,6 +174,8 @@ class Scoreboard:
 		return div
 
 	def get_display_val(self, m, k, div, r = None):
+		if div == 'age_grade':
+			div = 'gender_age_grade'
 		if k in ["place", "points", "total_points"]:
 			if r == None:
 				k = self.general_div(div) + "_" + k
@@ -202,8 +207,10 @@ class Scoreboard:
 
 	def build_div_lists_for_race(self, r):
 		l = {}
+		if r.id not in self.race_lists:
+			return
 		for m in self.race_lists[r.id]:
-			for t in ["overall", "masters", "div"]:
+			for t in ["overall", "masters", "div", "age_grade"]:
 				for gender in ["m", "f"]:
 					div = t + "_" + gender
 					if t == "div":
@@ -238,6 +245,8 @@ class Scoreboard:
 		return " ".join(self.div_part_name(p) for p in parts)
 
 	def get_div_name_by_code(self, code):
+		if code == "age" or code == "grade":
+			return "Age Graded"
 		code = int(code)
 		if code == 0:
 			return str(DIV_CUTOFFS[0]) + " and under"
@@ -255,8 +264,7 @@ class Scoreboard:
 			return self.html_div_scoring_total(gender, div)
 		full_div = str(div) + "_" + gender.lower()
 		k =  full_div + "_" + str(r.id)
-		#print(self.div_lists_by_race)
-		if not k in self.div_lists_by_race[r.id]:
+		if r.id not in self.div_lists_by_race or not k in self.div_lists_by_race[r.id]:
 			return ""
 		html =  "<tr><td class='circuit_title' colspan='100%'>" + \
 			self.get_div_name(full_div) + "</td></tr>\n"
@@ -286,7 +294,7 @@ class Scoreboard:
 			m = self.members[m_key]
 			if not m.fits_in_div(gender, div):
 				continue
-			if not m.__dict__[k]:
+			if k not in m.__dict__ or not m.__dict__[k]:
 				continue
 			runners.append(m)
 		runners = sorted(runners, key = lambda m: m.__dict__[k], reverse = True)
@@ -335,13 +343,14 @@ def get_place_key(t, r):
 def score_race(r):
 	con.query("select * from usatf.race_results where race_id = %s order by place_overall",
 						[int(r.id)])
+
 	while True:
 		rr_rec = con.fetch_row()
 		if not rr_rec:
 			break
 		m = scoreboard.get_member(rr_rec)
 		scoreboard.append_to_race_list(r, m)
-		for t in ["gender", "masters", "div", "age_grade"]:
+		for t in ["gender", "masters", "div", "gender_age_grade"]:
 			t_key = t
 			if t == "div":
 				t_key = str(scoreboard.get_div_code(m.usatf_age))
@@ -376,7 +385,7 @@ def html_race_link(r):
 def html_race_scores(r):
 	html = html_race_anchor(r) + "<table class='circuit' align='center'>\n"
 	html += "<tr><th colspan='100%'>" + get_race_name(r) + "</th></tr>\n"
-	for t in ["overall", "masters"] + scoreboard.get_div_list():
+	for t in ["overall", "masters", "age_grade"] + scoreboard.get_div_list():
 		for gender in ['m', 'f']:
 			html += scoreboard.html_div_scoring_for_race(r, gender, t)
 	html += "</table>"
