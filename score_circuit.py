@@ -14,7 +14,7 @@ class Member:
 		self.overall_points = 0
 		self.div_points = 0
 		self.masters_points = 0
-		self.age_grade_points = 0
+		self.gender_age_grade_points = 0
 		self.races = 0
 		self.usatf_age = int(self.usatf_age)
 
@@ -28,7 +28,7 @@ class Member:
 			(self.races - BONUS_POINTS_DOUBLE_CUTOFF) * 2
 
 	def update_total_points(self):
-		for t in ['overall', 'masters', 'div', 'age_grade']:
+		for t in ['overall', 'masters', 'div', 'gender_age_grade']:
 			points_var = t + "_points"
 			total_points_var = t + "_total_points"
 			self.__dict__[points_var] = 0
@@ -36,12 +36,14 @@ class Member:
 				t = scoreboard.get_div_code(self.usatf_age)
 			self.__dict__[points_var] = sum(sorted((self.get_points_for_race(r,t)
 				for r in scoreboard.races),reverse=True)[0:MAX_RACES])
-
+			#if "age_grade" in points_var:
+			#	print("age_grade={}".format(self.__dict__))
+			self.__dict__[total_points_var] = self.__dict__[points_var]
 			if not DISABLE_BONUS:
-				self.__dict__[total_points_var] = self.__dict__[points_var] + self.bonus_points
+				 self.__dict__[total_points_var] += self.bonus_points
 
 	def update_mars(self):
-		for t in ['overall', 'masters', 'div']:
+		for t in ['overall', 'masters', 'div', 'gender_age_grade']:
 			self.update_mars_for_div(t)
 
 	def get_points_for_race(self, r, div):
@@ -129,7 +131,7 @@ class Member:
 			return True
 		if div == "masters":
 			return self.usatf_age >= 40
-		if div == "age_grade":
+		if "age_grade" in str(div):
 			return True
 		if (type(div) == int or div.isdigit()) and \
 			int(div) == self.get_div_code():
@@ -141,15 +143,21 @@ class Scoreboard:
 	def __init__(self, year):
 		self.members = {}
 		self.races = None
+		self.rr_lookup = {}
 		self.race_lists = {}
-		self.race_placing_fields = ['place', 'fname', 'lname', 'points']
-		self.placing_fields = self.race_placing_fields +  ['bonus_points',
-			'total_points']
-		self.placing_fields.insert(3, 'races')
+		self.common_placing_fields = ['place', 'fname', 'lname', 'points']
+		self.race_placing_fields =  self.common_placing_fields + ['time', 'usatf_age', 'age_grade']
+		self.placing_fields = self.common_placing_fields + ['races']
+		if not DISABLE_BONUS:
+			self.placing_fields += ['bonus_points']
+		self.placing_fields += ['total_points']
 		self.field_display = {'fname' : 'First Name', 'lname': 'Last Name',
 			'place' : 'Circuit Place', 'points':'Regular Points',
 			'races' : 'Races',
-			'bonus_points':'Bonus Points', 'total_points': 'Total Points'
+			'bonus_points':'Bonus Points', 'total_points': 'Total Points',
+			'time' : 'Time',
+			'age_grade': 'Age Grade %',
+			'usatf_age': 'USATF age',
 		}
 		self.div_part_names = {'overall':'Overall', 'm': 'Men', 'f':'Women',
 			'masters':'Masters', 'gender_age_grade': 'Age Grade'}
@@ -164,6 +172,7 @@ class Scoreboard:
 			if not r:
 				break
 			self.members[r.id] = Member(r)
+			self.rr_lookup[r.id] = {}
 
 	def get_div_list(self):
 		return range(0, len(DIV_CUTOFFS))
@@ -171,9 +180,15 @@ class Scoreboard:
 	def general_div(self, div):
 		if type(div) == int or div.isdigit():
 			return "div"
+		if "age_grade" in str(div):
+			return "gender_age_grade"
 		return div
 
 	def get_display_val(self, m, k, div, r = None):
+		if k == "time":
+			return ms_to_time(self.rr_lookup[m.id][r.id].chip_time_ms) if r else None
+		if "age_grade" in k:
+			return "{:.2f}".format(self.rr_lookup[m.id][r.id].age_grade) if r else None
 		if div == 'age_grade':
 			div = 'gender_age_grade'
 		if k in ["place", "points", "total_points"]:
@@ -181,6 +196,8 @@ class Scoreboard:
 				k = self.general_div(div) + "_" + k
 			else:
 				k += "_" + str(div) + "_" + str(r.id)
+		if k == "bonus_points" and DISABLE_BONUS:
+			return ""
 		return str(m.__dict__[k])
 
 	def html_field_headers(self, r):
@@ -197,6 +214,9 @@ class Scoreboard:
 		for k in self.race_placing_fields) + \
 		"</td></tr>"
 
+	def record_rr_for_member(self, m, rr_rec):
+		self.rr_lookup[m.id][rr_rec.race_id] = rr_rec
+
 	def get_member(self, rr_rec):
 		return self.members[rr_rec.member_id]
 
@@ -210,7 +230,7 @@ class Scoreboard:
 		if r.id not in self.race_lists:
 			return
 		for m in self.race_lists[r.id]:
-			for t in ["overall", "masters", "div", "age_grade"]:
+			for t in ["overall", "masters", "div", "gender_age_grade"]:
 				for gender in ["m", "f"]:
 					div = t + "_" + gender
 					if t == "div":
@@ -218,7 +238,12 @@ class Scoreboard:
 					#print("genders:" + m.gender + "," + gender)
 					if m.fits_in_div(gender, t):
 						self.append_to_div_for_race(l, r, m, div)
-		#print("l keys =" + str(l.keys()))
+		for gender in ["m", "f"]:
+			k = "age_grade_" + gender + "_" + str(r.id)
+			#print([el.__dict__ for el in l[k]])
+			age_grade_k = 'place_gender_age_grade_{}'.format(r.id)
+			if k in l:
+				l[k] = sorted(l[k], key=lambda el: el.__dict__[age_grade_k])
 		self.div_lists_by_race[r.id] = l
 
 	def get_div_code(self, age):
@@ -241,12 +266,12 @@ class Scoreboard:
 			self.build_div_lists_for_race(r)
 
 	def get_div_name(self, div):
+		if "age_grade" in div:
+			return "Age Graded"
 		parts = div.split("_")
 		return " ".join(self.div_part_name(p) for p in parts)
 
 	def get_div_name_by_code(self, code):
-		if code == "age" or code == "grade":
-			return "Age Graded"
 		code = int(code)
 		if code == 0:
 			return str(DIV_CUTOFFS[0]) + " and under"
@@ -282,6 +307,7 @@ class Scoreboard:
 			m.update_total_points()
 
 	def html_member_placing_overall(self, m, div):
+
 		return "<tr><td>" + \
 		"</td><td>".join(self.get_display_val(m, k, div) \
 			for k in self.placing_fields) + \
@@ -326,6 +352,8 @@ def get_points(place):
 	return (PLACE_POINTS_CUTOFF - PLACE_HOP_CUTOFF) + place_diff * (place_diff + 1) / 2
 
 def get_points_key(t, r):
+	if "age_grade" in str(t):
+		t = "gender_age_grade"
 	return "points_" + str(t) + "_" + str(r.id)
 
 def get_best_mar_key(div, r):
@@ -349,6 +377,7 @@ def score_race(r):
 		if not rr_rec:
 			break
 		m = scoreboard.get_member(rr_rec)
+		scoreboard.record_rr_for_member(m, rr_rec)
 		scoreboard.append_to_race_list(r, m)
 		for t in ["gender", "masters", "div", "gender_age_grade"]:
 			t_key = t
@@ -385,7 +414,12 @@ def html_race_link(r):
 def html_race_scores(r):
 	html = html_race_anchor(r) + "<table class='circuit' align='center'>\n"
 	html += "<tr><th colspan='100%'>" + get_race_name(r) + "</th></tr>\n"
-	for t in ["overall", "masters", "age_grade"] + scoreboard.get_div_list():
+	divs = ["overall"]
+	if SHOW_AGE_GRADE:
+		divs.append("gender_age_grade")
+	if SHOW_MASTERS:
+		divs.append("masters")
+	for t in divs + scoreboard.get_div_list():
 		for gender in ['m', 'f']:
 			html += scoreboard.html_div_scoring_for_race(r, gender, t)
 	html += "</table>"

@@ -61,7 +61,7 @@ class Place_tracker:
 
 	def record_runner(self, gender, age):
 		self.reset_last_places()
-		gender = gender.lower()
+		gender = gender.lower()[0]
 		age = int(age)
 		self.inc_div('', 'overall')
 		self.inc_div(gender, 'gender')
@@ -78,32 +78,63 @@ class Members:
 		con.query(q, (race_date.year, "%m%d", USATF_MEM_DATE,
 								race_date.year, "%m%d", race_date.strftime("%m%d")))
 		self.members = {}
+		self.members_by_lname = {}
 		self.matches = {}
 		r = con.fetch_row()
 		while r:
 			k = self.get_member_key(r)
 			if k not in self.members:
 				self.members[k] = []
+			k_lname = self.get_member_lname_key(r)
+			if k_lname not in self.members_by_lname:
+				self.members_by_lname[k_lname] = []
+			self.members_by_lname[k_lname].append(r)
 			self.members[k].append(r)
 			r = con.fetch_row()
+		#print(self.members_by_lname)
 		#print(self.members)
 	@staticmethod
 	def get_member_key(r):
-		return str(r.lname).upper() + "|" + str(r.age) + "|" + str(r.gender).upper()[0:1]
+		lname = cleanup_str(r.lname).split(" ")[-1]
+		return lname.upper() + "|" + str(r.age) + "|" + str(r.gender).upper()[0:1]
 
-	def find(self, row):
-		k = self.get_member_key(row)
-		if k in self.matches:
-			raise Exception("Member " + str(k) + " already matched")
-		# print("Checking key " + k)
-		# print " ".join(self.members.keys())
-		if k not in self.members:
-			#print("no match for key " + k)
+	@staticmethod
+	def get_member_lname_key(r):
+		lname = cleanup_str(r.lname).split(" ")[-1]
+		return lname.upper() + "|" + str(r.gender).upper()[0:1]
+
+	#TODO: make more robust
+	def maybe_match(self, el, r):
+		if r.match_row_id:
+			return r.match_row_id == el.id
+		#print("maybe_match: name={} fname={}".format(r.name, el.fname))
+		return r.name[0].upper() == el.fname[0].upper()
+
+	def get_lname_match_list(self, r):
+		k_lname = self.get_member_lname_key(r)
+		return [el for el in self.members_by_lname[k_lname] if self.maybe_match(el, r)]
+
+
+	def find_by_lname(self, r):
+		k_lname = self.get_member_lname_key(r)
+		#print("k_lname={}".format(k_lname))
+		if r.age > 0 or not k_lname in self.members_by_lname:
 			return None
-		m_list = self.members[k]
-		if len(m_list) == 1:
-			self.matches[k] = row
-			return m_list[0]
+		if not r.mark_for_match:
+			match_list = self.get_lname_match_list(r)
+			if match_list:
+				print("Row {} could possibly match {}, mark it with * if you want it matched".
+					format(r.__dict__, [el.__dict__ for el in match_list]))
+			return None
+		match_list = self.members_by_lname[k_lname]
+		if len(match_list) == 1:
+			return match_list[0]
+		match_list = self.get_lname_match_list(r)
+		if len(match_list) == 1:
+			return match_list[0]
+		return self.manual_match(match_list, r, k_lname)
+
+	def manual_match(self, m_list, row, k):
 		while True:
 			row_id = int(get_input("Multiple matches for " + str(row.__dict__) + ": " + str(m_list) + "\nenter Row id (0 for no match):"))
 			if row_id == 0:
@@ -113,6 +144,24 @@ class Members:
 					self.matches[k] = row
 					return m
 				print("Bad row ID, try again")
+
+	def find(self, row):
+		k = self.get_member_key(row)
+		if k in self.matches:
+			raise Exception("Member " + str(k) + " already matched")
+		# print("Checking key " + k)
+		if k not in self.members:
+			#print("no match for key " + k)
+			return self.find_by_lname(row)
+		m_list = self.members[k]
+		if len(m_list) == 1:
+			self.matches[k] = row
+			return m_list[0]
+		if row.match_row_id:
+			for m in m_list:
+				if m.id == row.match_row_id:
+					return m
+		return self.manual_match(m_list, row, k)
 
 class Row_obj:
 	def __init__(self, ref_o, row):
@@ -125,6 +174,7 @@ class Row_obj:
 		except:
 		  fatal("Bad age in row " + str(row))
 		self.usatf_age = 0
+		self.mark_for_match = False
 
 class Race_rec:
 	def __init__(self, ref_o, m, row_o):
@@ -184,6 +234,8 @@ class Ref_obj:
 				self.__dict__[f] = None
 		if self.gun_time is None:
 			self.gun_time = self.time
+		if self.place is None:
+			self.place = lc_fields.index("place_overall")
 	def __str__(self):
 		return "{}".format(self.__dict__)
 
@@ -194,6 +246,8 @@ class Ref_obj:
 		try:
 			return row[self.__dict__[field_name]]
 		except:
+			if field_name == "age":
+				return 0
 			if field_name in ('first_name', 'last_name'):
 				return None
 			if field_name == "name":
@@ -253,13 +307,27 @@ with open(fname, 'rb') as f:
 	ref_o = Ref_obj(fields)
 	print('ref_o: {}'.format(ref_o))
 	for row in r:
+		mark_for_match = False
+		match_row_id = None
+		if row[0][0] == "*":
+			no_star = row[0][1:]
+			mark_for_match = True
+			parts = no_star.split('!')
+			if len(parts) == 2:
+				row[0] = parts[1]
+				match_row_id = int(parts[0])
+				print("match_row_id={}".format(match_row_id))
+			else:
+				row[0] = no_star
 		row = [cleanup_str(v) for v in row]
 		row_o = Row_obj(ref_o, row)
 		row_o.usatf_age = row_o.age
+		row_o.mark_for_match = mark_for_match
+		row_o.match_row_id = match_row_id
 		place_tracker.record_runner(row_o.gender, row_o.usatf_age)
-		#print("searching for " + str(row_o.__dict__))
 		if not row_o.time:
 			continue
+		#print("searching for " + str(row_o.__dict__))
 		m = ref_o.find_member(row_o)
 		if m:
 			row_o.usatf_age = int(m.usatf_age)

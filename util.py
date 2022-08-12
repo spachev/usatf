@@ -16,7 +16,7 @@ def get_input(msg):
 	return raw_input(msg)
 
 def cleanup_str(s):
-	return BAD_CHARS_RE.sub("", s.strip())
+	return BAD_CHARS_RE.sub("", s.encode('utf-8').strip())
 
 def time_to_ms(t):
 	parts = str(t).split(':')
