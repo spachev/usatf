@@ -470,7 +470,7 @@ def get_races(year):
 	end_year = year
 	if start_year == 2020:
 		end_year += 1 # COVID
-	con.query("select * from usatf.race where date between %s and %s",
+	con.query("select * from usatf.race where date between %s and %s order by date",
 						(str(start_year) + "-01-01", str(end_year) + "-12-31"))
 	return con.fetch_all()
 

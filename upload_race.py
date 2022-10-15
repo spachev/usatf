@@ -112,6 +112,7 @@ class Members:
 
 	def get_lname_match_list(self, r):
 		k_lname = self.get_member_lname_key(r)
+		#print(k_lname)
 		return [el for el in self.members_by_lname[k_lname] if self.maybe_match(el, r)]
 
 
@@ -147,6 +148,7 @@ class Members:
 
 	def find(self, row):
 		k = self.get_member_key(row)
+		#print("k={} row={}".format(k, row))
 		if k in self.matches:
 			raise Exception("Member " + str(k) + " already matched")
 		# print("Checking key " + k)
@@ -309,7 +311,7 @@ with open(fname, 'rb') as f:
 	for row in r:
 		mark_for_match = False
 		match_row_id = None
-		if row[0][0] == "*":
+		if row[0] and row[0][0] == "*":
 			no_star = row[0][1:]
 			mark_for_match = True
 			parts = no_star.split('!')
@@ -327,7 +329,7 @@ with open(fname, 'rb') as f:
 		place_tracker.record_runner(row_o.gender, row_o.usatf_age)
 		if not row_o.time:
 			continue
-		#print("searching for " + str(row_o.__dict__))
+		# print("searching for " + str(row_o.__dict__))
 		m = ref_o.find_member(row_o)
 		if m:
 			row_o.usatf_age = int(m.usatf_age)

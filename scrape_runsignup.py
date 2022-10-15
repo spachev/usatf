@@ -5,15 +5,21 @@ import sys
 import json
 import lxml.html
 import re
+import logging
 from util import *
-
+#logging.basicConfig(level=logging.DEBUG)
 BASE_URL = "https://runsignup.com/Race/Results/{}"
-HEADER_MAP = {"name" : "Name", "place" : "Place", "gender": "Gender", "age" : "Age", "chip_time" : "Time"}
+HEADER_MAP = {"name" : "Name", "place" : "Place", "gender": "Gender",
+						  "age" : "Age",
+							"chip_time" : "Time"}
+
 
 def get_results_for_div(result_set_id):
-	url = BASE_URL.format(race_id) + "?resultSetId={}&page=1&num=100".format(result_set_id)
-	rsp = requests.get(url, headers={'accept': 'application/json'})
-	#print(rsp.text)
+	s = requests.Session()
+	s.cookies.set("remMe", "foo", domain="runsignup.com", path="/")
+	s.cookies.set("PHPSESSID", "7mi-d9swD96KzP6iL%2CynTdBgojpUYnPf") # TODO: figure this mystery out
+	url = BASE_URL.format(race_id) + "?resultSetId={}&page=1&num=10000&search=".format(result_set_id)
+	rsp = s.get(url, headers={'accept': 'application/json'})
 	data = rsp.json()
 	headings = data['headings']
 	h_lookup = {}
@@ -78,6 +84,11 @@ combined = remove_dup_bibs(sorted(combined, key=lambda r: time_to_ms(r["chip_tim
 place = 1
 for r in combined:
 	r["place"] = place
+	if not "gender" in r:
+		r["gender"] = r["division"][0]
+	if not "age" in r:
+		age_str = r["division"].split("\n")[-1]
+		r["age"] = age_str[1:3] + "-" + age_str[3:5]
 	place += 1
 
 print(delim.join([ HEADER_MAP[k] for k in HEADER_MAP]))
