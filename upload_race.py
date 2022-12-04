@@ -60,6 +60,7 @@ class Place_tracker:
 		self.last_places = {}
 
 	def record_runner(self, gender, age):
+		# print("gender={} age={}".format(gender,age))
 		self.reset_last_places()
 		gender = gender.lower()[0]
 		age = int(age)
