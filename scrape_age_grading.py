@@ -14,7 +14,7 @@ SAMPLE_PACE_KM = 300
 MIN_AGE = 5
 MAX_AGE = 100
 KM_IN_MILE = 1.60934
-DIST_LIST = ["1 M", "5 K", "10 K", "15 K", "Half Marathon", "Marathon"]
+DIST_LIST = ["1 M", "5 K", "10 K", "15 K", "10 M", "Half Marathon", "Marathon"]
 HEADER = ["Event", "Event", "Kilometers","Miles","WR Seconds"]
 WR_POS = len(HEADER)-1
 

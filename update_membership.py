@@ -13,8 +13,8 @@ con.connect()
 query = ("load data local infile '" + fname +
 	"' replace into table member" +
 	" fields terminated by ',' optionally enclosed by '\"'" +
-	" ignore 1 lines (fname,lname,bdate,@gender,@email,usatf_no,@junk,@junk"
-	+ ") set gender=substring(@gender,1,1)")
+	" ignore 1 lines (fname,lname,@bdate,@gender,@junk,usatf_no"
+	+ ") set gender=substring(@gender,1,1), bdate=str_to_date(@bdate, '%c/%d/%Y')")
 print(query)
 con.query(query)
 con.close()

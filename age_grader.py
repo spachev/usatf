@@ -27,8 +27,9 @@ class Age_grader:
 			dist_name = "Marathon"
 		elif dist_cm == HMAR_DIST_CM:
 			dist_name = "Half Marathon"
-		elif dist_cm == MILE_DIST_CM:
-			dist_name = "1 M"
+		elif dist_cm % MILE_DIST_CM == 0:
+			dist_miles = dist_cm / MILE_DIST_CM
+			dist_name = "{} M".format(dist_miles)
 		else:
 			dist_name = "{} K".format(dist_cm / 100000)
 		return gender.upper() + dist_name

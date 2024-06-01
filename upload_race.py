@@ -7,6 +7,10 @@ import re
 from age_grader import Age_grader
 from constants import *
 
+last_chip_time_ms = None
+last_gun_time_ms = None
+ROLLOVER_CUTOFF_MS = 2000 * 1000
+
 age_grader = Age_grader()
 
 def get_race(race_name, race_date, race_dist_cm):
@@ -62,6 +66,8 @@ class Place_tracker:
 	def record_runner(self, gender, age):
 		self.reset_last_places()
 		gender = gender.lower()[0]
+		if gender not in ['m', 'f']:
+			return
 		age = int(age)
 		self.inc_div('', 'overall')
 		self.inc_div(gender, 'gender')
@@ -79,6 +85,7 @@ class Members:
 								race_date.year, "%m%d", race_date.strftime("%m%d")))
 		self.members = {}
 		self.members_by_lname = {}
+		self.members_by_row_id = {}
 		self.matches = {}
 		r = con.fetch_row()
 		while r:
@@ -90,6 +97,7 @@ class Members:
 				self.members_by_lname[k_lname] = []
 			self.members_by_lname[k_lname].append(r)
 			self.members[k].append(r)
+			self.members_by_row_id[r.id] = r
 			r = con.fetch_row()
 		#print(self.members_by_lname)
 		#print(self.members)
@@ -114,6 +122,8 @@ class Members:
 		k_lname = self.get_member_lname_key(r)
 		return [el for el in self.members_by_lname[k_lname] if self.maybe_match(el, r)]
 
+	def find_by_row_id(self, row_id):
+		return self.members_by_row_id[row_id]
 
 	def find_by_lname(self, r):
 		k_lname = self.get_member_lname_key(r)
@@ -125,6 +135,8 @@ class Members:
 			if match_list:
 				print("Row {} could possibly match {}, mark it with * if you want it matched".
 					format(r.__dict__, [el.__dict__ for el in match_list]))
+				if args.force_manual_match:
+					return self.manual_match(match_list, r, k_lname)
 			return None
 		match_list = self.members_by_lname[k_lname]
 		if len(match_list) == 1:
@@ -146,6 +158,8 @@ class Members:
 				print("Bad row ID, try again")
 
 	def find(self, row):
+		if row.match_row_id:
+			return self.find_by_row_id(row.match_row_id)
 		k = self.get_member_key(row)
 		if k in self.matches:
 			raise Exception("Member " + str(k) + " already matched")
@@ -157,10 +171,6 @@ class Members:
 		if len(m_list) == 1:
 			self.matches[k] = row
 			return m_list[0]
-		if row.match_row_id:
-			for m in m_list:
-				if m.id == row.match_row_id:
-					return m
 		return self.manual_match(m_list, row, k)
 
 class Row_obj:
@@ -172,12 +182,20 @@ class Row_obj:
 		try:
 		  self.age = int(self.age)
 		except:
-		  fatal("Bad age in row " + str(row))
+		  fatal("Bad age {} in row {} ".format(self.age, row))
 		self.usatf_age = 0
 		self.mark_for_match = False
 
+def adjust_for_rollover(last_time_ms, cur_time_ms):
+	if last_time_ms and last_time_ms - cur_time_ms > ROLLOVER_CUTOFF_MS:
+		return cur_time_ms + 3600 * 1000
+	return cur_time_ms
+
+
 class Race_rec:
 	def __init__(self, ref_o, m, row_o):
+		global last_gun_time_ms
+		global last_chip_time_ms
 		self.member_id = m.id
 		self.member = m
 		self.race_id = race.id
@@ -188,6 +206,11 @@ class Race_rec:
 		for k in ('overall', 'gender', 'div', 'gender_usatf', 'div_usatf',
 						'masters', 'masters_usatf', 'gender_age_grade_usatf'):
 			self.__dict__['place_' + k ] = 0
+		self.gun_time_ms = adjust_for_rollover(last_gun_time_ms, self.gun_time_ms)
+		self.chip_time_ms = adjust_for_rollover(last_chip_time_ms, self.chip_time_ms)
+		last_chip_time_ms = self.chip_time_ms
+		last_gun_time_ms = self.gun_time_ms
+
 
 	def compute_age_grade(self, runner):
 		self.age_grade = age_grader.grade_for_race(runner, self)
@@ -227,13 +250,16 @@ class Ref_obj:
 		fix_fields_re = re.compile(r"\s+")
 		lc_fields = [fix_fields_re.sub("_", f.lower().strip()) for f in fields]
 		print(lc_fields)
-		for f in ("place", "name", "gun_time", "chip_time", "gender", "age", "time", "first_name", "last_name"):
+		for f in ("place", "name", "gun_time", "chip_time", "gender", "age", "time", "clock_time", "first_name",
+			"last_name"):
 			try:
 				self.__dict__[f] = lc_fields.index(f)
 			except:
 				self.__dict__[f] = None
 		if self.gun_time is None:
 			self.gun_time = self.time
+		if self.gun_time is None:
+			self.gun_time = self.clock_time
 		if self.place is None:
 			self.place = lc_fields.index("place_overall")
 	def __str__(self):
@@ -244,6 +270,10 @@ class Ref_obj:
 
 	def get_field(self, field_name, row):
 		try:
+			if field_name == "time":
+				print("time: {}".format(self.__dict__[field_name]))
+				print(row)
+				print(row[self.__dict__[field_name]])
 			return row[self.__dict__[field_name]]
 		except:
 			if field_name == "age":
@@ -285,6 +315,7 @@ parser.add_argument('--delim', help='CSV file field delimiter', default=';')
 parser.add_argument('--race-name', help='Race Name', required=True)
 parser.add_argument('--race-date', help='Race Date')
 parser.add_argument('--race-dist-cm', help='Race Distance in centimiters')
+parser.add_argument('--force-manual-match', action='store_true', help='Force Manual Match')
 
 args = parser.parse_args()
 
@@ -309,6 +340,8 @@ with open(fname, 'rb') as f:
 	for row in r:
 		mark_for_match = False
 		match_row_id = None
+		if not row[0]:
+			continue
 		if row[0][0] == "*":
 			no_star = row[0][1:]
 			mark_for_match = True
@@ -317,6 +350,9 @@ with open(fname, 'rb') as f:
 				row[0] = parts[1]
 				match_row_id = int(parts[0])
 				print("match_row_id={}".format(match_row_id))
+				# 0 means ignore runner
+				if int(parts[1]) == 0:
+					continue
 			else:
 				row[0] = no_star
 		row = [cleanup_str(v) for v in row]

@@ -13,7 +13,8 @@ HEADER_MAP = {"name" : "Name", "place" : "Place", "gender": "Gender", "age" : "A
 def get_results_for_div(result_set_id):
 	url = BASE_URL.format(race_id) + "?resultSetId={}&page=1&num=100".format(result_set_id)
 	rsp = requests.get(url, headers={'accept': 'application/json'})
-	#print(rsp.text)
+	#print("Resutls:")
+	print(rsp.text)
 	data = rsp.json()
 	headings = data['headings']
 	h_lookup = {}
@@ -53,6 +54,19 @@ def remove_dup_bibs(res):
 		new_res.append(r)
 	return new_res
 
+def fix_division(div):
+	return div.split("\n")[-1]
+
+def add_gender_and_age(data):
+	for r in data:
+		if "division" not in r:
+			continue
+		r["division"] = fix_division(r["division"])
+		if "gender" not in r:
+			r["gender"] = r["division"][0]
+		if "age" not in r:
+			r["age"] = r["division"][1:3] + "-" + r["division"][3:5]
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--race-id", required=True)
 parser.add_argument("--delim", default=";")
@@ -74,6 +88,7 @@ for id in result_set_ids:
 
 
 combined = remove_dup_bibs(sorted(combined, key=lambda r: time_to_ms(r["chip_time"])))
+add_gender_and_age(combined)
 
 place = 1
 for r in combined:
