@@ -16,7 +16,11 @@ def get_input(msg):
 	return raw_input(msg)
 
 def cleanup_str(s):
-	return BAD_CHARS_RE.sub("", s.encode('utf-8').strip())
+	try:
+		s = "".join([c for c in s if ord(c) < 128])
+		return BAD_CHARS_RE.sub("", s.encode('utf-8').strip())
+	except:
+		return ""
 
 def time_to_ms(t):
 	parts = str(t).split(':')

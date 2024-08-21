@@ -162,7 +162,8 @@ class Members:
 			return self.find_by_row_id(row.match_row_id)
 		k = self.get_member_key(row)
 		if k in self.matches:
-			raise Exception("Member " + str(k) + " already matched")
+			print("Member " + str(k) + " already matched")
+			return None
 		# print("Checking key " + k)
 		if k not in self.members:
 			#print("no match for key " + k)
@@ -250,8 +251,8 @@ class Ref_obj:
 		fix_fields_re = re.compile(r"\s+")
 		lc_fields = [fix_fields_re.sub("_", f.lower().strip()) for f in fields]
 		print(lc_fields)
-		for f in ("place", "name", "gun_time", "chip_time", "gender", "age", "time", "clock_time", "first_name",
-			"last_name"):
+		for f in ("place", "name", "gun_time", "chip_time", "gender", "age", "time",  "first_name",
+			"last_name", "clock_time"):
 			try:
 				self.__dict__[f] = lc_fields.index(f)
 			except:
@@ -287,9 +288,9 @@ class Ref_obj:
 				if self.last_name is not None:
 					return row[self.last_name]
 				return row[self.name].split(' ')[-1]
-			elif field_name == "chip_time" or field_name == "time":
+			elif field_name in ("chip_time", "time", "clock_time") and self.gun_time != None:
 				return row[self.gun_time]
-			elif field_name == "gun_time" and self.time != None:
+			elif field_name in ("gun_time","clock_time") and self.time != None:
 				print("row:" + ';'.join(row))
 				print("time ind: " + str(self.time))
 				return row[self.time]
