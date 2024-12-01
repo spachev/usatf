@@ -42,10 +42,6 @@ class Member:
 			if not DISABLE_BONUS:
 				 self.__dict__[total_points_var] += self.bonus_points
 
-	def update_mars(self):
-		for t in ['overall', 'masters', 'div', 'gender_age_grade']:
-			self.update_mars_for_div(t)
-
 	def get_points_for_race(self, r, div):
 		if not r:
 			return 0
@@ -63,63 +59,38 @@ class Member:
 	def set_best_hmar(self, div, r, val):
 		self.__dict__[get_best_hmar_key(div, r)] = val
 
+	def set_best2_hmar(self, div, r, val):
+		self.__dict__[get_best2_hmar_key(div, r)] = val
+
 	def mul_points_for_race(self, div, r, val):
 		#print(self.__dict__)
 		k = get_points_key(div, r)
 		self.__dict__[k] *= val
 
-	def update_mars_for_div(self, t):
-		best_race = None
-		best2_race = None
+	def update_long_races(self):
+ 		for t in ['overall', 'masters', 'div', 'gender_age_grade']:
+			self.update_long_races_for_div(t)
+
+	def update_long_races_for_div(self, t):
 		if t == "masters" and self.usatf_age < MASTERS_AGE:
 			return
 		if t == "div":
 			t = scoreboard.get_div_code(self.usatf_age)
 		div = t
+
 		mars = [r for r in scoreboard.races if r.dist_cm == MAR_DIST_CM and
 			self.get_points_for_race(r, div) > 0]
+		hmars = [r for r in scoreboard.races if r.dist_cm == HMAR_DIST_CM and
+			self.get_points_for_race(r, div) > 0]
 		mars.sort(key=lambda r: self.get_points_for_race(r, div), reverse = True)
-		#print("Memeber: " + str(self.__dict__))
-		#print("Marathons: " + str(mars))
-		if len(mars) < 1:
-			return
-		best_race = mars[0]
-		if len(mars) >= 2:
-			best2_race = mars[1]
-		self.set_best_mar(div, best_race, False)
-		if best2_race:
-			self.set_best2_mar(div, best2_race, False)
-		if best_race:
-			self.mul_points_for_race(div, best_race, 1.5)
-			self.set_best_mar(div, best_race, True)
-		if best2_race:
-			self.mul_points_for_race(div, best2_race, 1.25)
-			self.set_best2_mar(div, best2_race, True)
+		if len(mars) > 0:
+			self.mul_points_for_race(div, mars[0], MAR_POINTS_K)
+		if len(mars) > 1:
+			hmars += mars[1:]
+		hmars.sort(key=lambda r: self.get_points_for_race(r, div), reverse = True)
+		for i in range(0,min(2,len(hmars))):
+			self.mul_points_for_race(div, hmars[i], HMAR_POINTS_K)
 
-	def update_hmars_for_div(self, t):
-		best_race = None
-		if t == "masters" and self.usatf_age < MASTERS_AGE:
-			return
-		if t == "div":
-			t = scoreboard.get_div_code(self.usatf_age)
-		div = t
-		for r in scoreboard.races:
-			if int(r.dist_cm) != HMAR_DIST_CM:
-				continue
-			if self.get_points_for_race(best_race, div) < \
-					self.get_points_for_race(r, div):
-				if best_race:
-					self.set_best_hmar(div, best_race, False)
-				best_race = r
-			else:
-				self.set_best_hmar(div, r, False)
-		if best_race:
-			self.mul_points_for_race(div, best_race, 1.25)
-			self.set_best_hmar(div, best_race, True)
-
-	def update_hmars(self):
-		for t in ['overall', 'masters', 'div']:
-			self.update_hmars_for_div(t)
 
 	def get_div_code(self):
 		return scoreboard.get_div_code(self.usatf_age)
@@ -301,8 +272,7 @@ class Scoreboard:
 	def update_scores(self):
 		for m_key in self.members:
 			m = self.members[m_key]
-			m.update_mars()
-			m.update_hmars()
+			m.update_long_races()
 			m.update_bonus_points()
 			m.update_total_points()
 
@@ -364,6 +334,9 @@ def get_best2_mar_key(div, r):
 
 def get_best_hmar_key(div, r):
 	return "best_hmar_" + str(div) + "_" + str(r.id)
+
+def get_best2_hmar_key(div, r):
+	return "best2_hmar_" + str(div) + "_" + str(r.id)
 
 def get_place_key(t, r):
 	return "place_" + t + "_" + str(r.id)

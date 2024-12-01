@@ -135,6 +135,8 @@ class Members:
 			if match_list:
 				print("Row {} could possibly match {}, mark it with * if you want it matched".
 					format(r.__dict__, [el.__dict__ for el in match_list]))
+				if len(match_list) == 1 and args.auto_single_match:
+					return match_list[0]
 				if args.force_manual_match:
 					return self.manual_match(match_list, r, k_lname)
 			return None
@@ -317,6 +319,7 @@ parser.add_argument('--race-name', help='Race Name', required=True)
 parser.add_argument('--race-date', help='Race Date')
 parser.add_argument('--race-dist-cm', help='Race Distance in centimiters')
 parser.add_argument('--force-manual-match', action='store_true', help='Force Manual Match')
+parser.add_argument('--auto-single-match', action='store_true', help='Automatically Match all signle matches as positive')
 
 args = parser.parse_args()
 

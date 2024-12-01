@@ -16,4 +16,8 @@
 #python2 scrape_runner_card.py > tou-mar-2023.txt
 
 # 167119
-python2 scrape_brooksee.py --param-id=168861 --url-part=wrt --race-id=167119 --event="10 Mile" > ogden-10m-2024.txt
+#python2 scrape_brooksee.py --param-id=168861 --url-part=wrt --race-id=167119 --event="10 Mile" > ogden-10m-2024.txt
+# python2 scrape_brooksee.py --param-id=169828 --url-part=tuh --race-id=167324 --event="Half Marathon" > tou-half-2024.txt
+# 7a06675b-81ad-47c5-ba80-2f31411170ff
+#python2 scrape_runner_card.py > tou-mar-2024.txt
+python2 scrape_runner_card_xc.py > xc-2024.txt
