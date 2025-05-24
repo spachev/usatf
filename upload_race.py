@@ -102,9 +102,9 @@ class Members:
 		#print(self.members_by_lname)
 		#print(self.members)
 	@staticmethod
-	def get_member_key(r):
+	def get_member_key(r, d_age=0):
 		lname = cleanup_str(r.lname).split(" ")[-1]
-		return lname.upper() + "|" + str(r.age) + "|" + str(r.gender).upper()[0:1]
+		return lname.upper() + "|" + str(r.age + d_age) + "|" + str(r.gender).upper()[0:1]
 
 	@staticmethod
 	def get_member_lname_key(r):
@@ -163,13 +163,18 @@ class Members:
 		if row.match_row_id:
 			return self.find_by_row_id(row.match_row_id)
 		k = self.get_member_key(row)
+		#print("k={}".format(k))
 		if k in self.matches:
 			print("Member " + str(k) + " already matched")
 			return None
 		# print("Checking key " + k)
 		if k not in self.members:
-			#print("no match for key " + k)
-			return self.find_by_lname(row)
+			# print("no match for key " + k)
+			k = self.get_member_key(row, 1) # try a year older
+			if k in self.members:
+				m_list = self.members[k]
+			else:
+				return self.find_by_lname(row)
 		m_list = self.members[k]
 		if len(m_list) == 1:
 			self.matches[k] = row
@@ -254,11 +259,15 @@ class Ref_obj:
 		lc_fields = [fix_fields_re.sub("_", f.lower().strip()) for f in fields]
 		print(lc_fields)
 		for f in ("place", "name", "gun_time", "chip_time", "gender", "age", "time",  "first_name",
-			"last_name", "clock_time"):
+			"last_name", "clock_time", "clocktime", "chiptime"):
 			try:
 				self.__dict__[f] = lc_fields.index(f)
 			except:
 				self.__dict__[f] = None
+		if self.clocktime is not None and self.gun_time is None:
+			self.gun_time = self.clocktime
+		if self.chiptime is not None and self.chip_time is None:
+			self.chip_time = self.chiptime
 		if self.gun_time is None:
 			self.gun_time = self.time
 		if self.gun_time is None:
@@ -279,6 +288,8 @@ class Ref_obj:
 				print(row[self.__dict__[field_name]])
 			return row[self.__dict__[field_name]]
 		except:
+			if self.time is None and self.gun_time != None:
+				self.time = self.gun_time
 			if field_name == "age":
 				return 0
 			if field_name in ('first_name', 'last_name'):
@@ -290,9 +301,9 @@ class Ref_obj:
 				if self.last_name is not None:
 					return row[self.last_name]
 				return row[self.name].split(' ')[-1]
-			elif field_name in ("chip_time", "time", "clock_time") and self.gun_time != None:
+			elif field_name in ("chip_time", "time", "clock_time", "chiptime") and self.gun_time != None:
 				return row[self.gun_time]
-			elif field_name in ("gun_time","clock_time") and self.time != None:
+			elif field_name in ("gun_time","clock_time", "clocktime") and self.time != None:
 				print("row:" + ';'.join(row))
 				print("time ind: " + str(self.time))
 				return row[self.time]

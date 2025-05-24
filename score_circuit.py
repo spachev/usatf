@@ -103,7 +103,7 @@ class Member:
 		if div == "masters":
 			return self.usatf_age >= 40
 		if "age_grade" in str(div):
-			return True
+			return self.usatf_age >= 40
 		if (type(div) == int or div.isdigit()) and \
 			int(div) == self.get_div_code():
 				return True
