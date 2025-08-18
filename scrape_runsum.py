@@ -6,7 +6,7 @@ import json
 from util import *
 
 BASE_URL="https://www.runsum.com/results/resframe_rpcjames.php?param1=runners&raceid={}&event1={}&visage=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxooxxxxxxxxxxxxxxxxxxxx&crit=&class1=all&limit=5000&offset=0"
-COLS = ["Place", "Name", "Gender", "Age", "Gun Time"]
+COLS = ["Place", "Name", "Gender", "Age", "Chip Time"]
 parser = argparse.ArgumentParser(description='Fetch Runsum Results')
 parser.add_argument('--race-id', help='Race ID', required=True)
 parser.add_argument('--event', help='Event', required=True)
@@ -23,7 +23,7 @@ print(delim.join(COLS))
 for d in data:
 	for k in d:
 		d[k] = cleanup_str(d[k])
-	l = [d['oplace'], d['first_name'] + ' ' + d['last_name'], d['gender'], d['age'], d['time']]
+	l = [d['oplace'], d['first_name'] + ' ' + d['last_name'], d['gender'], d['age'], d['chiptime']]
 	if "unknown" in l[1].lower():
 		continue
 	try:
