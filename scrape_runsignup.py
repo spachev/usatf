@@ -14,7 +14,6 @@ def get_results_for_div(result_set_id):
 	url = BASE_URL.format(race_id) + "?resultSetId={}&page=1&num=100".format(result_set_id)
 	rsp = requests.get(url, headers={'accept': 'application/json'})
 	#print("Resutls:")
-	print(rsp.text)
 	data = rsp.json()
 	headings = data['headings']
 	h_lookup = {}
@@ -54,8 +53,21 @@ def remove_dup_bibs(res):
 		new_res.append(r)
 	return new_res
 
+def extract_time_in_ms(r):
+	for k in ["chip_time", "gun_time", "clock_time"]:
+		try:
+			return time_to_ms(r[k])
+		except:
+			pass
+	raise Exception("Could not extract the time in ms for {}".format(r))
+
 def fix_division(div):
 	return div.split("\n")[-1]
+
+def get_by_key(r, k):
+	if k == "chip_time" and (k not in r or len(r[k]) == 0):
+		return r["clock_time"]
+	return r[k]
 
 def add_gender_and_age(data):
 	for r in data:
@@ -87,7 +99,7 @@ for id in result_set_ids:
 	combined += div_res
 
 
-combined = remove_dup_bibs(sorted(combined, key=lambda r: time_to_ms(r["chip_time"])))
+combined = remove_dup_bibs(sorted(combined, key=lambda r: extract_time_in_ms(r)))
 add_gender_and_age(combined)
 
 place = 1
@@ -97,4 +109,4 @@ for r in combined:
 
 print(delim.join([ HEADER_MAP[k] for k in HEADER_MAP]))
 for r in combined:
-	print(delim.join([str(r[k]) for k in HEADER_MAP]))
+	print(delim.join([str(get_by_key(r,k)) for k in HEADER_MAP]))

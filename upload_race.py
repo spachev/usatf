@@ -274,6 +274,10 @@ class Ref_obj:
 			self.gun_time = self.clock_time
 		if self.place is None:
 			self.place = lc_fields.index("place_overall")
+		if self.time is None:
+			self.time = self.chip_time
+		if self.chiptime is None and self.chip_time is not None:
+			self.chiptime = self.chip_time
 	def __str__(self):
 		return "{}".format(self.__dict__)
 
@@ -309,6 +313,7 @@ class Ref_obj:
 				return row[self.time]
 			print("bad field: " + field_name)
 			print("row:" + ';'.join(row))
+			print("time ind: " + str(self.time))
 			raise
 
 	def find_member(self, row_o):
